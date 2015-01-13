@@ -94,9 +94,23 @@ void ArrayRefParseLevelFunctor::operator()()
 
 void FinalParseLevelFunctor::operator()()
 {
-	if (lookahead() == "id") {
+	string currToken = lookahead();
+
+	if (currToken == "id") {
 		match("id");
 		cout << "id" << endl;
+
+		if (lookahead() == "(") {
+			match("(");
+
+			if (lookahead() != ")") {
+				ExpressionList();
+			}
+
+			match(")");
+		}
+	} else if (currToken == "num" || currToken == "string" || currToken == "character") {
+		match(currToken);
 	} else {
 		match("(");
 		(*m_firstLevel)();
