@@ -1,0 +1,19 @@
+#include "Header.h"
+
+void TranslationUnit();
+void GlobalDeclaration();
+void GlobalDeclaratorList();
+void GlobalDeclarator();
+void Pointers();
+void Specifier();
+void FunctionDefinition();
+void Parameters();
+void ParameterList();
+void Parameter();
+void Declarations();
+void Declaration();
+void DeclaratorList();
+void Declarator();
+void Statements();
+void Statement();
+void ExpressionList();
