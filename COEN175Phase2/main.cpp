@@ -9,14 +9,13 @@ using namespace std;
 int main()
 {
 	typedef pair<string, string> token;
-	tokens.push_back(token("id", "z"));
-	tokens.push_back(token("*", " "));
-	tokens.push_back(token("id", "y"));
-	tokens.push_back(token("+", " "));
 	tokens.push_back(token("id", "x"));
+	tokens.push_back(token("+", " "));
+	tokens.push_back(token("id", "y"));
+	tokens.push_back(token("*", " "));
+	tokens.push_back(token("id", "z"));	
 
 	ExpressionParser expr;
 	expr();
 	system("pause");
 }
-

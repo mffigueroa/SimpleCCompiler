@@ -5,7 +5,7 @@
 extern std::vector<std::pair<std::string, std::string>> tokens;
 
 void match(const std::string& tokenType);
-std::string lookahead();
+std::string lookahead(int ahead = 0);
 void expr();
 
 class ParseLevelFunctor;

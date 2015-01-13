@@ -6,7 +6,8 @@
 #include <string>
 using namespace std;
 
-vector<pair<string, string>> tokens;
+vector<pair<string, string>>	tokens;
+size_t							currTokenIndex;
 
 void error()
 {
@@ -17,19 +18,21 @@ void error()
 
 void match(const string& tokenType)
 {
-	pair<string, string> currToken = *tokens.rbegin();
-	tokens.pop_back();
+	vector<pair<string, string>>::const_iterator currTokenIt = tokens.begin() + currTokenIndex;
 
-	if (currToken.first != tokenType) {
+	if (currTokenIt->first != tokenType) {
 		error();
 	}
+
+	++currTokenIndex;
 }
 
-string lookahead()
+string lookahead(int ahead)
 {
 	if (tokens.empty()) {
 		return "";
 	}
 
-	return tokens.rbegin()->first;
+	vector<pair<string, string>>::const_iterator it = tokens.begin() + currTokenIndex + ahead;
+	return it->first;
 }

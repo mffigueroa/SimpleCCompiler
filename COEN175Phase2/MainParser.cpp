@@ -1,12 +1,11 @@
+#include <string>
+
+using namespace std;
+
 #include "Header.h"
 
 void TranslationUnit();
-void TranslationUnitPrefix();
-void GlobalDeclaratorSuffix();
-void FunctionDefinitionSuffix();
-
 void GlobalDeclaration();
-void GlobalDeclaratorList();
 void GlobalDeclarator();
 void Pointers();
 void Specifier();
@@ -21,6 +20,8 @@ void Declarator();
 void Statements();
 void Statement();
 void ExpressionList();
+
+ExpressionParser expParser;
 
 void Specifier()
 {
@@ -42,21 +43,155 @@ void Pointers()
 
 void TranslationUnit()
 {
-	TranslationUnitPrefix();
+	if (lookahead(3) == "(") {
+		if (lookahead(4) == ")") {
+			GlobalDeclaration();
+		} else {
+			FunctionDefinition();
+		}
+	} else {
+		GlobalDeclaration();
+	}
 }
 
-void TranslationUnitPrefix()
+void GlobalDeclaration()
+{
+	Specifier();
+
+	GlobalDeclarator();
+	while (lookahead() == ",") {
+		match(",");
+		GlobalDeclarator();
+	}
+
+	match(";");
+}
+
+void GlobalDeclarator()
+{
+	Pointers();
+	match("id");
+	if (lookahead() == "[")	{
+		match("[");
+		match("num");
+		match("]");
+	} else if (lookahead() == "(")	{
+		match("(");
+		match(")");
+	}
+}
+
+void FunctionDefinition()
+{
+	Specifier();
+	Pointers();
+	match("id");
+
+	match("(");
+	Parameters();
+	match(")");
+
+	match("{");
+	Declarations();
+	Statements();
+	match("}");
+}
+
+void Parameters()
+{
+	if (lookahead() == "void") {
+		match("void");
+	} else {
+		Parameter();
+
+		while (lookahead() == ",") {
+			match(",");
+			Parameter();
+		}
+	}
+}
+
+void Parameter()
 {
 	Specifier();
 	Pointers();
 	match("id");
 }
 
-void GlobalDeclaratorSuffix()
+void Declarations()
 {
-	if (lookahead() == "(")
+	for (string currToken = lookahead();
+		currToken == "int" || currToken == "long" || currToken == "char";
+		currToken = lookahead()) {
+			Declaration();
+	}
+}
+
+void Declaration()
+{
+	Specifier();
+	Declarator();
+
+	while (lookahead() == ",") {
+		Declarator();
+	}
+
+	match(";");
+}
+
+void Declarator()
+{
+	Pointers();
+	match("id");
+
+	if (lookahead() == "[") {
+		match("[");
+		match("num");
+		match("]");
+	}
+}
+
+void Statements()
+{
+	while (lookahead() != "}")
 	{
+		Statement();
+	}
+}
+
+void Statement()
+{
+	string currToken = lookahead();
+
+	if (currToken == "{") {
+		Declarations();
+		Statements();
+	} else if (currToken == "return") {
+		match("return");
+		expParser();
+		match(";");
+	} else if (currToken == "while") {
+		match("while");
 		match("(");
+		expParser();
 		match(")");
+		Statement();
+	} 
+	// --- WHAT ABOUT IF-ELSE ---
+	else if (currToken == "if") {
+		match("if");
+		match("(");
+		expParser();
+		match(")");
+		Statement();
+	} else {
+		expParser();
+		if (lookahead() == "=") {
+			match("=");
+			expParser();
+			match(";");
+		} else {
+			match(";");
+		}
 	}
 }
