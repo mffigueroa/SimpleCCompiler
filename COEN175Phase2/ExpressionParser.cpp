@@ -46,10 +46,16 @@ public:
 		: m_firstLevel(firstLevel) {}
 
 	void SetFirstLevel(ParseLevelFunctor* firstLevel);
+
 	virtual void operator()();
 private:
 	ParseLevelFunctor* m_firstLevel;
 };
+
+void FinalParseLevelFunctor::SetFirstLevel(ParseLevelFunctor* firstLevel)
+{
+	m_firstLevel = firstLevel;
+}
 
 void ParseLevelFunctor::operator()()
 {
