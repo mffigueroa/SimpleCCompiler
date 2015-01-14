@@ -2,10 +2,8 @@
 #include <set>
 #include <string>
 
-extern std::vector<std::pair<std::string, std::string>> tokens;
-
 void match(const std::string& tokenType);
-std::string lookahead(int ahead = 0);
+std::string lookahead(unsigned int ahead = 0);
 void expr();
 
 class ParseLevelFunctor;

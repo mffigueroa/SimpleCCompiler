@@ -1,38 +1,49 @@
 #include "Header.h"
+#include "Tokens.h"
 
 #include <iostream>
-#include <stdio.h>
-#include <vector>
+#include <stdlib.h>
+#include <queue>
 #include <string>
+
+extern int yylex (void);
+
 using namespace std;
 
-vector<pair<string, string>>	tokens;
-size_t							currTokenIndex;
+queue<int>	tokenBuffer;
+size_t		currTokenIndex;
 
 void error()
 {
 	cout << "Error" << endl;
-	system("pause");
 	exit(0);
 }
 
 void match(const string& tokenType)
 {
-	vector<pair<string, string>>::const_iterator currTokenIt = tokens.begin() + currTokenIndex;
+	int currToken;
+	
+	if(tokenBuffer.size()) {
+	  currToken = tokenBuffer.front();
+	  tokenBuffer.pop();
+	} else {
+	  currToken = yylex();
+	}
 
-	if (currTokenIt->first != tokenType) {
+	if (currToken != tokenMap[tokenType]) {
 		error();
 	}
-
-	++currTokenIndex;
 }
 
-string lookahead(int ahead)
+string lookahead(unsigned int ahead)
 {
-	if (tokens.empty()) {
-		return "";
+	if(ahead + 1 > tokenBuffer.size()) {
+	  int tokensToRead = ahead - tokenBuffer.size() + 1;
+	  
+	  for(int i = 0; i < tokensToRead; ++i) {
+	    tokenBuffer.push(yylex());
+	  }
 	}
 
-	vector<pair<string, string>>::const_iterator it = tokens.begin() + currTokenIndex + ahead;
-	return it->first;
+	return reverseTokenMap[tokenBuffer.back()];
 }

@@ -53,7 +53,7 @@ void GlobalDeclaration()
 void GlobalDeclarator()
 {
 	Pointers();
-	match("id");
+	match("IDENTIFIER");
 	if (lookahead() == "[")	{
 		match("[");
 		match("num");
@@ -68,7 +68,7 @@ void FunctionDefinition()
 {
 	Specifier();
 	Pointers();
-	match("id");
+	match("IDENTIFIER");
 
 	match("(");
 	Parameters();
@@ -98,7 +98,7 @@ void Parameter()
 {
 	Specifier();
 	Pointers();
-	match("id");
+	match("IDENTIFIER");
 }
 
 void Declarations()
@@ -125,7 +125,7 @@ void Declaration()
 void Declarator()
 {
 	Pointers();
-	match("id");
+	match("IDENTIFIER");
 
 	if (lookahead() == "[") {
 		match("[");

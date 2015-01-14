@@ -4,18 +4,13 @@
 #include <string>
 using namespace std;
 
+#include "Tokens.h"
 #include "Header.h"
 
 int main()
 {
-	typedef pair<string, string> token;
-	tokens.push_back(token("id", "x"));
-	tokens.push_back(token("+", " "));
-	tokens.push_back(token("id", "y"));
-	tokens.push_back(token("*", " "));
-	tokens.push_back(token("id", "z"));	
-
-	ExpressionParser expr;
-	expr();
-	system("pause");
+  CreateTokenMap();
+  //TranslationUnit();
+  FunctionDefinition();
+  return 0;
 }

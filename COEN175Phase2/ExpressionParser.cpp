@@ -96,9 +96,9 @@ void FinalParseLevelFunctor::operator()()
 {
 	string currToken = lookahead();
 
-	if (currToken == "id") {
-		match("id");
-		cout << "id" << endl;
+	if (currToken == "IDENTIFIER") {
+		match("IDENTIFIER");
+		cout << "IDENTIFIER" << endl;
 
 		if (lookahead() == "(") {
 			match("(");
@@ -121,9 +121,10 @@ void FinalParseLevelFunctor::operator()()
 
 ExpressionParser::ExpressionParser()
 {
-	FinalParseLevelFunctor		firstLevel(0);
+	FinalParseLevelFunctor*		firstLevel(0);
+	firstLevel = new FinalParseLevelFunctor(0);
 	ArrayRefParseLevelFunctor*	secondLevel;
-	secondLevel = new ArrayRefParseLevelFunctor(&firstLevel);
+	secondLevel = new ArrayRefParseLevelFunctor(firstLevel);
 
 	set<string> operators;
 	operators.insert("&");
@@ -170,7 +171,7 @@ ExpressionParser::ExpressionParser()
 	operators.insert("||");
 	m_ninthLvl = new ParseLevelFunctor(operators, eightLvl);
 
-	firstLevel.SetFirstLevel(m_ninthLvl);
+	firstLevel->SetFirstLevel(m_ninthLvl);
 }
 
 void ExpressionParser::operator()()
@@ -205,8 +206,8 @@ void ExpressionParser::operator()()
 	}
 
 	void J() {
-		if(lookahead == "id") {
-			match("id");
+		if(lookahead == "IDENTIFIER") {
+			match("IDENTIFIER");
 		} else {
 			match('(');
 			A();
