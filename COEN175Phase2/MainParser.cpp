@@ -4,8 +4,6 @@ using namespace std;
 
 #include "Header.h"
 
-ExpressionParser expParser;
-
 void Specifier()
 {
 	if (lookahead() == "int") {
@@ -26,8 +24,16 @@ void Pointers()
 
 void TranslationUnit()
 {
-	if (lookahead(3) == "(") {
-		if (lookahead(4) == ")") {
+	// both GlobalDeclaration and FunctionDefinition
+	// start with Specifier Pointers ID
+
+	// starting at the first possible position
+	// for Pointers, find the end of Pointers
+	int lastPointerToken = 1;
+	for (; lookahead(lastPointerToken) == "*"; ++lastPointerToken);
+
+	if (lookahead(lastPointerToken + 1) == "(") {
+		if (lookahead(lastPointerToken + 2) == ")") {
 			GlobalDeclaration();
 		} else {
 			FunctionDefinition();
@@ -56,7 +62,7 @@ void GlobalDeclarator()
 	match("IDENTIFIER");
 	if (lookahead() == "[")	{
 		match("[");
-		match("num");
+		Number();
 		match("]");
 	} else if (lookahead() == "(")	{
 		match("(");
@@ -116,6 +122,7 @@ void Declaration()
 	Declarator();
 
 	while (lookahead() == ",") {
+		match(",");
 		Declarator();
 	}
 
@@ -129,7 +136,7 @@ void Declarator()
 
 	if (lookahead() == "[") {
 		match("[");
-		match("num");
+		Number();
 		match("]");
 	}
 }
@@ -151,12 +158,12 @@ void Statement()
 		Statements();
 	} else if (currToken == "return") {
 		match("return");
-		expParser();
+		Expression();
 		match(";");
 	} else if (currToken == "while") {
 		match("while");
 		match("(");
-		expParser();
+		Expression();
 		match(")");
 		Statement();
 	} 
@@ -164,14 +171,14 @@ void Statement()
 	else if (currToken == "if") {
 		match("if");
 		match("(");
-		expParser();
+		Expression();
 		match(")");
 		Statement();
 	} else {
-		expParser();
+		Expression();
 		if (lookahead() == "=") {
 			match("=");
-			expParser();
+			Expression();
 			match(";");
 		} else {
 			match(";");
@@ -181,9 +188,18 @@ void Statement()
 
 void ExpressionList()
 {
-	expParser();
+	Expression();
 
 	while (lookahead() == ",") {
-		expParser();
+		Expression();
+	}
+}
+
+void Number()
+{
+	if (lookahead() == "INTEGER") {
+		match("INTEGER");
+	} else {
+		match("LONGINTEGER");
 	}
 }

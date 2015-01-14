@@ -27,9 +27,18 @@
     <ClCompile Include="MainParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="lex.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Tokens.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Header.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Tokens.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

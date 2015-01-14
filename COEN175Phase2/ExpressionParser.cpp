@@ -1,5 +1,6 @@
 #include <iostream>
 #include <set>
+#include <map>
 
 using namespace std;
 
@@ -7,8 +8,11 @@ using namespace std;
 
 class ParseLevelFunctor {
 public:
-	ParseLevelFunctor(const std::set<std::string>& operatorSet, ParseLevelFunctor* nextLevel)
-		: m_operatorSet(operatorSet), m_nextLevel(nextLevel){}
+	ParseLevelFunctor(const set<string>& operatorSet, const map<string, string>& operatorNames, ParseLevelFunctor* nextLevel)
+		: m_operatorSet(operatorSet), m_operatorNames(operatorNames), m_nextLevel(nextLevel){}
+
+	ParseLevelFunctor(ParseLevelFunctor* nextLevel)
+		: m_nextLevel(nextLevel){}
 
 	ParseLevelFunctor()
 		: m_nextLevel(0) {}
@@ -22,21 +26,29 @@ public:
 
 	virtual void operator()();
 protected:
-	std::set<std::string>			m_operatorSet;
+	set<string>			m_operatorSet;
+	map<string, string>	m_operatorNames;
 	ParseLevelFunctor*	m_nextLevel;
 };
 
 class PrefixParseLevelFunctor : public ParseLevelFunctor {
 public:
-	PrefixParseLevelFunctor(const std::set<std::string>& operatorSet, ParseLevelFunctor* nextLevel)
-		: ParseLevelFunctor(operatorSet, nextLevel) {}
+	PrefixParseLevelFunctor(const set<string>& operatorSet, const map<string, string>& operatorNames, ParseLevelFunctor* nextLevel)
+		: ParseLevelFunctor(operatorSet, operatorNames, nextLevel) {}
+	virtual void operator()();
+};
+
+class CastParseLevelFunctor : public ParseLevelFunctor {
+public:
+	CastParseLevelFunctor(ParseLevelFunctor* nextLevel)
+		: ParseLevelFunctor(nextLevel) {}
 	virtual void operator()();
 };
 
 class ArrayRefParseLevelFunctor : public ParseLevelFunctor {
 public:
 	ArrayRefParseLevelFunctor(ParseLevelFunctor* nextLevel)
-		: ParseLevelFunctor(std::set<string>(), nextLevel){}
+		: ParseLevelFunctor(nextLevel){}
 	virtual void operator()();
 };
 
@@ -52,6 +64,14 @@ private:
 	ParseLevelFunctor* m_firstLevel;
 };
 
+class ExpressionParser {
+public:
+	ExpressionParser();
+	void operator()();
+private:
+	ParseLevelFunctor*		m_tenthLvl;
+};
+
 void FinalParseLevelFunctor::SetFirstLevel(ParseLevelFunctor* firstLevel)
 {
 	m_firstLevel = firstLevel;
@@ -64,8 +84,8 @@ void ParseLevelFunctor::operator()()
 	for (set<string>::const_iterator op = m_operatorSet.find(lookahead());
 		op != m_operatorSet.end(); op = m_operatorSet.find(lookahead())) {
 			match(*op);
-			cout << *op << endl;
 			(*m_nextLevel)();
+			cout << m_operatorNames[*op] << endl;
 	}
 }
 
@@ -74,7 +94,29 @@ void PrefixParseLevelFunctor::operator()()
 	for (set<string>::const_iterator op = m_operatorSet.find(lookahead());
 		op != m_operatorSet.end(); op = m_operatorSet.find(lookahead())) {
 			match(*op);
-			cout << *op << endl;
+
+			if (*op == "sizeof" && lookahead() == "(") {
+				match("(");
+				Specifier();
+				Pointers();
+				match(")");
+			}
+
+			cout << m_operatorNames[*op] << endl;
+	}
+
+	(*m_nextLevel)();
+}
+
+void CastParseLevelFunctor::operator()()
+{
+	if (lookahead() == "(" &&
+		(lookahead(1) == "int" || lookahead(1) == "long" || lookahead(1) == "char")) {
+			match("(");
+			Specifier();
+			Pointers();
+			match(")");
+			cout << "cast" << endl;
 	}
 
 	(*m_nextLevel)();
@@ -86,9 +128,9 @@ void ArrayRefParseLevelFunctor::operator()()
 
 	while (lookahead() == "[") {
 		match("[");
-		(*m_nextLevel)();
+		Expression();
+		cout << "index" << endl;
 		match("]");
-		cout << "[]" << endl;
 	}
 }
 
@@ -98,7 +140,6 @@ void FinalParseLevelFunctor::operator()()
 
 	if (currToken == "IDENTIFIER") {
 		match("IDENTIFIER");
-		cout << "IDENTIFIER" << endl;
 
 		if (lookahead() == "(") {
 			match("(");
@@ -109,7 +150,7 @@ void FinalParseLevelFunctor::operator()()
 
 			match(")");
 		}
-	} else if (currToken == "num" || currToken == "string" || currToken == "character") {
+	} else if (currToken == "INTEGER" || currToken == "LONGINTEGER" || currToken == "STRING" || currToken == "CHARACTER") {
 		match(currToken);
 	} else {
 		match("(");
@@ -127,56 +168,90 @@ ExpressionParser::ExpressionParser()
 	secondLevel = new ArrayRefParseLevelFunctor(firstLevel);
 
 	set<string> operators;
+	map<string, string> operatorOutputMap;
 	operators.insert("&");
+	operatorOutputMap["&"] = "addr";
 	operators.insert("*");
+	operatorOutputMap["*"] = "deref";
 	operators.insert("!");
+	operatorOutputMap["!"] = "not";
 	operators.insert("-");
+	operatorOutputMap["-"] = "neg";
 	operators.insert("sizeof");
+	operatorOutputMap["sizeof"] = "sizeof";
 	PrefixParseLevelFunctor*	thirdLvl;
-	thirdLvl = new PrefixParseLevelFunctor(operators, secondLevel);
+	thirdLvl = new PrefixParseLevelFunctor(operators, operatorOutputMap, secondLevel);
+
+	CastParseLevelFunctor* fourthLvl;
+	fourthLvl = new CastParseLevelFunctor(thirdLvl);
 
 	operators.clear();
+	operatorOutputMap.clear();
 	operators.insert("*");
+	operatorOutputMap["*"] = "mul";
 	operators.insert("/");
+	operatorOutputMap["/"] = "div";
 	operators.insert("%");
-	ParseLevelFunctor*			fourthLvl; 
-	fourthLvl = new ParseLevelFunctor(operators, thirdLvl);
+	operatorOutputMap["%"] = "rem";
+	ParseLevelFunctor*			fifthLvl; 
+	fifthLvl = new ParseLevelFunctor(operators, operatorOutputMap, fourthLvl);
 
 	operators.clear();
+	operatorOutputMap.clear();
 	operators.insert("+");
+	operatorOutputMap["+"] = "add";
 	operators.insert("-");
-	ParseLevelFunctor*			fifthLvl;
-	fifthLvl = new ParseLevelFunctor(operators, fourthLvl);
-
-	operators.clear();
-	operators.insert("<");
-	operators.insert(">");
-	operators.insert("<=");
-	operators.insert(">=");
+	operatorOutputMap["-"] = "sub";
 	ParseLevelFunctor*			sixthLvl;
-	sixthLvl = new ParseLevelFunctor(operators, fifthLvl);
+	sixthLvl = new ParseLevelFunctor(operators, operatorOutputMap, fifthLvl);
 
 	operators.clear();
-	operators.insert("==");
-	operators.insert("!=");
+	operatorOutputMap.clear();
+	operators.insert("<");
+	operatorOutputMap["<"] = "ltn";
+	operators.insert(">");
+	operatorOutputMap[">"] = "gtn";
+	operators.insert("<=");
+	operatorOutputMap["<="] = "leq";
+	operators.insert(">=");
+	operatorOutputMap[">="] = "geq";
 	ParseLevelFunctor*			seventhLvl;
-	seventhLvl = new ParseLevelFunctor(operators, sixthLvl);
+	seventhLvl = new ParseLevelFunctor(operators, operatorOutputMap, sixthLvl);
 
 	operators.clear();
+	operatorOutputMap.clear();
+	operators.insert("==");
+	operatorOutputMap["=="] = "eql";
+	operators.insert("!=");
+	operatorOutputMap["!="] = "neq";
+	ParseLevelFunctor*			eighthLvl;
+	eighthLvl = new ParseLevelFunctor(operators, operatorOutputMap, seventhLvl);
+
+	operators.clear();
+	operatorOutputMap.clear();
 	operators.insert("&&");
-	ParseLevelFunctor*			eightLvl;
-	eightLvl = new ParseLevelFunctor(operators, seventhLvl);
+	operatorOutputMap["&&"] = "and";
+	ParseLevelFunctor*			ninthLvl;
+	ninthLvl = new ParseLevelFunctor(operators, operatorOutputMap, eighthLvl);
 
 	operators.clear();
+	operatorOutputMap.clear();
 	operators.insert("||");
-	m_ninthLvl = new ParseLevelFunctor(operators, eightLvl);
+	operatorOutputMap["||"] = "or";
+	m_tenthLvl = new ParseLevelFunctor(operators, operatorOutputMap, ninthLvl);
 
-	firstLevel->SetFirstLevel(m_ninthLvl);
+	firstLevel->SetFirstLevel(m_tenthLvl);
 }
 
 void ExpressionParser::operator()()
 {
-	(*m_ninthLvl)();
+	(*m_tenthLvl)();
+}
+
+void Expression()
+{
+	static ExpressionParser expr;
+	expr();
 }
 
 /*

@@ -10,7 +10,7 @@ using namespace std;
 int main()
 {
   CreateTokenMap();
-  //TranslationUnit();
-  FunctionDefinition();
+  TranslationUnit();
+  system("pause");
   return 0;
 }

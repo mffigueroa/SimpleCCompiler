@@ -3,14 +3,14 @@
 
 #include <iostream>
 #include <stdlib.h>
-#include <queue>
+#include <deque>
 #include <string>
 
 extern int yylex (void);
 
 using namespace std;
 
-queue<int>	tokenBuffer;
+deque<int>	tokenBuffer;
 size_t		currTokenIndex;
 
 void error()
@@ -25,7 +25,7 @@ void match(const string& tokenType)
 	
 	if(tokenBuffer.size()) {
 	  currToken = tokenBuffer.front();
-	  tokenBuffer.pop();
+	  tokenBuffer.pop_front();
 	} else {
 	  currToken = yylex();
 	}
@@ -41,9 +41,10 @@ string lookahead(unsigned int ahead)
 	  int tokensToRead = ahead - tokenBuffer.size() + 1;
 	  
 	  for(int i = 0; i < tokensToRead; ++i) {
-	    tokenBuffer.push(yylex());
+	    tokenBuffer.push_back(yylex());
 	  }
 	}
 
-	return reverseTokenMap[tokenBuffer.back()];
+	deque<int>::const_iterator it = tokenBuffer.begin() + ahead;
+	return reverseTokenMap[*it];
 }
