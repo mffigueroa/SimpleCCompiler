@@ -11,6 +11,5 @@ int main()
 {
   CreateTokenMap();
   TranslationUnit();
-  system("pause");
   return 0;
 }
