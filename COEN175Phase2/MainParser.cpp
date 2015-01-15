@@ -36,12 +36,10 @@ void TranslationUnit()
 		if (lookahead(lastPointerToken + 1) == "(") {
 			if (lookahead(lastPointerToken + 2) == ")") {
 				GlobalDeclaration();
-			}
-			else {
+			} else {
 				FunctionDefinition();
 			}
-		}
-		else {
+		} else {
 			GlobalDeclaration();
 		}
 	}
@@ -158,8 +156,10 @@ void Statement()
 	string currToken = lookahead();
 
 	if (currToken == "{") {
+		match("{");
 		Declarations();
 		Statements();
+		match("}");
 	} else if (currToken == "return") {
 		match("return");
 		Expression();

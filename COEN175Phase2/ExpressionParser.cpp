@@ -91,21 +91,24 @@ void ParseLevelFunctor::operator()()
 
 void PrefixParseLevelFunctor::operator()()
 {
-	for (set<string>::const_iterator op = m_operatorSet.find(lookahead());
-		op != m_operatorSet.end(); op = m_operatorSet.find(lookahead())) {
-			match(*op);
+	set<string>::const_iterator op = m_operatorSet.find(lookahead());
 
-			if (*op == "sizeof" && lookahead() == "(") {
-				match("(");
-				Specifier();
-				Pointers();
-				match(")");
-			}
+	if (op != m_operatorSet.end()) {
+		match(*op);
 
-			cout << m_operatorNames[*op] << endl;
+		if (*op == "sizeof" && lookahead() == "(") {
+			match("(");
+			Specifier();
+			Pointers();
+			match(")");
+		}
+
+		(*this)();
+
+		cout << m_operatorNames[*op] << endl;
+	} else {
+		(*m_nextLevel)();
 	}
-
-	(*m_nextLevel)();
 }
 
 void CastParseLevelFunctor::operator()()
@@ -158,7 +161,6 @@ void FinalParseLevelFunctor::operator()()
 		match("(");
 		(*m_firstLevel)();
 		match(")");
-		cout << "()" << endl;
 	}
 }
 
