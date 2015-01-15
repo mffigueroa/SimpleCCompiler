@@ -16,7 +16,7 @@ void CreateTokenMap()
      "=|\+\+|--|\|\||&&|==|!=|<|>|<=|>=|\+|-|\*|\/|%|&|!|->|\(|\)|\[|\]|\{|\}|;|:|\.|,"
    };
    
-   unsigned int currTokenValue = 0;
+   unsigned int currTokenValue = 1;
    
    for(int i = 0; i < sizeof(regexes)/sizeof(string); ++i) {
      size_t startOfToken = 0;
@@ -46,4 +46,7 @@ void CreateTokenMap()
    for(map<string, unsigned int>::const_iterator it = tokenMap.begin(); it != tokenMap.end(); ++it) {
      reverseTokenMap[it->second] = it->first;
    }
+
+   reverseTokenMap[0] = "EOF";
+   tokenMap["EOF"] = 0;
 }

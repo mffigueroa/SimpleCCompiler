@@ -24,22 +24,26 @@ void Pointers()
 
 void TranslationUnit()
 {
-	// both GlobalDeclaration and FunctionDefinition
-	// start with Specifier Pointers ID
+	while (lookahead() != "EOF") {
+		// both GlobalDeclaration and FunctionDefinition
+		// start with Specifier Pointers ID
 
-	// starting at the first possible position
-	// for Pointers, find the end of Pointers
-	int lastPointerToken = 1;
-	for (; lookahead(lastPointerToken) == "*"; ++lastPointerToken);
+		// starting at the first possible position
+		// for Pointers, find the end of Pointers
+		int lastPointerToken = 1;
+		for (; lookahead(lastPointerToken) == "*"; ++lastPointerToken);
 
-	if (lookahead(lastPointerToken + 1) == "(") {
-		if (lookahead(lastPointerToken + 2) == ")") {
-			GlobalDeclaration();
-		} else {
-			FunctionDefinition();
+		if (lookahead(lastPointerToken + 1) == "(") {
+			if (lookahead(lastPointerToken + 2) == ")") {
+				GlobalDeclaration();
+			}
+			else {
+				FunctionDefinition();
+			}
 		}
-	} else {
-		GlobalDeclaration();
+		else {
+			GlobalDeclaration();
+		}
 	}
 }
 
@@ -191,6 +195,7 @@ void ExpressionList()
 	Expression();
 
 	while (lookahead() == ",") {
+		match(",");
 		Expression();
 	}
 }

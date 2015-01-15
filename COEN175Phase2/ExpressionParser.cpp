@@ -116,10 +116,12 @@ void CastParseLevelFunctor::operator()()
 			Specifier();
 			Pointers();
 			match(")");
-			cout << "cast" << endl;
-	}
 
-	(*m_nextLevel)();
+			(*m_nextLevel)();
+			cout << "cast" << endl;
+	} else {
+		(*m_nextLevel)();
+	}
 }
 
 void ArrayRefParseLevelFunctor::operator()()
