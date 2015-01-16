@@ -178,6 +178,11 @@ void Statement()
 		Expression();
 		match(")");
 		Statement();
+
+		if (lookahead() == "else") {
+			match("else");
+			Statement();
+		}
 	} else {
 		Expression();
 		if (lookahead() == "=") {
