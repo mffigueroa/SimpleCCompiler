@@ -13,6 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{67986624-DF4B-4B66-8CD6-548C9ED53730}</ProjectGuid>
     <RootNamespace>COEN175Phase2</RootNamespace>
+    <ProjectName>COEN175Phase3</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.21005.1
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "COEN175Phase2", "COEN175Phase2\COEN175Phase2.vcxproj", "{67986624-DF4B-4B66-8CD6-548C9ED53730}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "COEN175Phase3", "COEN175Phase2\COEN175Phase2.vcxproj", "{67986624-DF4B-4B66-8CD6-548C9ED53730}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
