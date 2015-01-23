@@ -1,29 +1,44 @@
 #include <string>
+#include <vector>
 
 using namespace std;
 
 #include "Header.h"
+#include "Type.h"
+#include "Symbol.h"
+#include "Tree.h"
 
-void Specifier()
+eSpecifier Specifier()
 {
 	if (lookahead() == "int") {
 		match("int");
+		return INT;
 	} else if (lookahead() == "long") {
 		match("long");
+		return LONGINT;
 	} else if (lookahead() == "char") {
 		match("char");
+		return CHAR;
 	}
+
+	return UNDEFINED;
 }
 
-void Pointers()
+size_t Pointers()
 {
+	int indirectionLvls = 0;
 	while (lookahead() == "*") {
+		++indirectionLvls;
 		match("*");
 	}
+
+	return indirectionLvls;
 }
 
 void TranslationUnit()
 {
+	TreeNode<vector<Symbol>> transUnitScope;
+
 	while (lookahead() != "EOF") {
 		// both GlobalDeclaration and FunctionDefinition
 		// start with Specifier Pointers ID
@@ -35,130 +50,177 @@ void TranslationUnit()
 
 		if (lookahead(lastPointerToken + 1) == "(") {
 			if (lookahead(lastPointerToken + 2) == ")") {
-				GlobalDeclaration();
+				GlobalDeclaration(transUnitScope);
 			} else {
-				FunctionDefinition();
+				FunctionDefinition(transUnitScope);
 			}
 		} else {
-			GlobalDeclaration();
+			GlobalDeclaration(transUnitScope);
 		}
 	}
 }
 
-void GlobalDeclaration()
+void GlobalDeclaration(TreeNode<vector<Symbol>>& scope)
 {
-	Specifier();
+	eSpecifier spec = Specifier();
 
-	GlobalDeclarator();
+	Symbol s;
+	GlobalDeclarator(s, spec);
+	scope.getVal().push_back(s);
+
 	while (lookahead() == ",") {
 		match(",");
-		GlobalDeclarator();
+		GlobalDeclarator(s, spec);
+		scope.getVal().push_back(s);
 	}
 
 	match(";");
 }
 
-void GlobalDeclarator()
+void GlobalDeclarator(Symbol& s, eSpecifier spec)
 {
-	Pointers();
-	match("IDENTIFIER");
+	s.type.lvlsOfIndirection = Pointers();
+
+	Variant ident;
+	match("IDENTIFIER", ident);
+
+	s.identifier = ident.getStrVal();
+	s.type.spec = spec;
+	s.type.isFunction = false;
+	s.type.arraySize = 0;
+
 	if (lookahead() == "[")	{
 		match("[");
-		Number();
+		s.type.arraySize = Number();
 		match("]");
 	} else if (lookahead() == "(")	{
 		match("(");
 		match(")");
+
+		s.type.isFunction = true;
 	}
 }
 
-void FunctionDefinition()
+void FunctionDefinition(TreeNode<vector<Symbol>>& scope)
 {
-	Specifier();
-	Pointers();
-	match("IDENTIFIER");
+	TreeNode<vector<Symbol>>* funcScope = new TreeNode<vector<Symbol>>(scope);
+
+	Symbol s;
+
+	s.type.spec = Specifier();
+	s.type.lvlsOfIndirection = Pointers();
+	s.type.isFunction = true;
+
+	Variant v;
+	match("IDENTIFIER", v);
+	s.identifier = v.getStrVal();
 
 	match("(");
-	Parameters();
+	Parameters(s.type.funcParams);
 	match(")");
 
 	match("{");
-	Declarations();
-	Statements();
+	Declarations(*funcScope);
+	Statements(*funcScope);
 	match("}");
 }
 
-void Parameters()
+void Parameters(vector<Symbol*>& params)
 {
 	if (lookahead() == "void") {
 		match("void");
 	} else {
-		Parameter();
+		Symbol* a = new Symbol;
+		Parameter(*a);
+		params.push_back(a);
 
 		while (lookahead() == ",") {
 			match(",");
-			Parameter();
+
+			a = new Symbol;
+			Parameter(*a);
+			params.push_back(a);
 		}
 	}
 }
 
-void Parameter()
+void Parameter(Symbol& s)
 {
-	Specifier();
-	Pointers();
-	match("IDENTIFIER");
+	s.type.spec = Specifier();
+	s.type.lvlsOfIndirection = Pointers();
+
+	Variant v;
+	match("IDENTIFIER", v);
+	s.identifier = v.getStrVal();
 }
 
-void Declarations()
+void Declarations(TreeNode<vector<Symbol>>& scope)
 {
 	for (string currToken = lookahead();
 		currToken == "int" || currToken == "long" || currToken == "char";
 		currToken = lookahead()) {
-			Declaration();
+			Declaration(scope);
 	}
 }
 
-void Declaration()
+void Declaration(TreeNode<vector<Symbol>>& scope)
 {
-	Specifier();
-	Declarator();
+	eSpecifier spec = Specifier();
+
+	Symbol a;
+	Declarator(a, spec);
+	scope.getVal().push_back(a);
 
 	while (lookahead() == ",") {
 		match(",");
-		Declarator();
+
+		Symbol b;
+		Declarator(b, spec);
+		scope.getVal().push_back(b);
 	}
 
 	match(";");
 }
 
-void Declarator()
+void Declarator(Symbol& s, eSpecifier spec)
 {
-	Pointers();
-	match("IDENTIFIER");
+	s.type.lvlsOfIndirection = Pointers();
 
-	if (lookahead() == "[") {
+	Variant ident;
+	match("IDENTIFIER", ident);
+
+	s.identifier = ident.getStrVal();
+	s.type.spec = spec;
+	s.type.isFunction = false;
+	s.type.arraySize = 0;
+
+	if (lookahead() == "[")	{
 		match("[");
-		Number();
+		s.type.arraySize = Number();
 		match("]");
 	}
 }
 
-void Statements()
+void Statements(TreeNode<vector<Symbol>>& scope)
 {
 	while (lookahead() != "}")
 	{
-		Statement();
+		Statement(scope);
 	}
 }
 
-void Statement()
+void Statement(TreeNode<vector<Symbol>>& scope)
 {
 	string currToken = lookahead();
 
 	if (currToken == "{") {
 		match("{");
-		Declarations();
-		Statements();
+
+		TreeNode<vector<Symbol>>* blockScope = new TreeNode<vector<Symbol>>(&scope);
+
+		Declarations(*blockScope);
+		Statements(*blockScope);
+
 		match("}");
 	} else if (currToken == "return") {
 		match("return");
@@ -169,19 +231,17 @@ void Statement()
 		match("(");
 		Expression();
 		match(")");
-		Statement();
-	} 
-	// --- WHAT ABOUT IF-ELSE ---
-	else if (currToken == "if") {
+		Statement(scope);
+	} else if (currToken == "if") {
 		match("if");
 		match("(");
 		Expression();
 		match(")");
-		Statement();
+		Statement(scope);
 
 		if (lookahead() == "else") {
 			match("else");
-			Statement();
+			Statement(scope);
 		}
 	} else {
 		Expression();
@@ -205,11 +265,15 @@ void ExpressionList()
 	}
 }
 
-void Number()
+int Number()
 {
+	Variant v;
+
 	if (lookahead() == "INTEGER") {
-		match("INTEGER");
+		match("INTEGER", v);
 	} else {
-		match("LONGINTEGER");
+		match("LONGINTEGER", v);
 	}
+
+	return v.getIntVal();
 }

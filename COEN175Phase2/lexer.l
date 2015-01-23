@@ -3,8 +3,12 @@
 #include <string>
 #include <map>
 #include "Tokens.h"
+#include "Type.h"
+#include "Variant.h"
 
 using namespace std;
+
+Variant currVariant;
 }
 
 DIGIT	[0-9]
@@ -30,12 +34,12 @@ WHITESPACE	[\n\t\v\r ]+
 <INCOMMENT>{WHITESPACE} {}
 \/\* { BEGIN(INCOMMENT); }
 {KEYWORD} { return tokenMap[yytext]; }
-{IDENTIFIER} { return tokenMap["IDENTIFIER"]; }
-{STRING} { return tokenMap["STRING"]; }
-{CHARACTER} { return tokenMap["CHARACTER"]; }
+{IDENTIFIER} { currVariant.setVal(IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
+{STRING} { currVariant.setVal(STRING, yytext); return tokenMap["STRING"]; }
+{CHARACTER} { currVariant.setVal(CHARACTER, yytext); return tokenMap["CHARACTER"]; }
 {OPERATOR} { return tokenMap[yytext]; }
-{INTEGER} { return tokenMap["INTEGER"]; }
-{LONGINTEGER} { return tokenMap["LONGINTEGER"]; }
+{INTEGER} { currVariant.setVal(INTEGER, yytext); return tokenMap["INTEGER"]; }
+{LONGINTEGER} { currVariant.setVal(LONGINTEGER, yytext); return tokenMap["LONGINTEGER"]; }
 {WHITESPACE} {}
 . { cerr << "Invalid character: " << yytext << endl; }
 

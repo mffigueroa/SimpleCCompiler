@@ -75,10 +75,15 @@
     <ClCompile Include="MainParser.cpp" />
     <ClCompile Include="Tokens.cpp" />
     <ClCompile Include="Util.cpp" />
+    <ClCompile Include="Variant.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Header.h" />
+    <ClInclude Include="Symbol.h" />
     <ClInclude Include="Tokens.h" />
+    <ClInclude Include="Tree.h" />
+    <ClInclude Include="Type.h" />
+    <ClInclude Include="Variant.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -7,10 +7,11 @@
 #include <string>
 
 extern int yylex (void);
+extern Variant currVariant;
 
 using namespace std;
 
-deque<int>	tokenBuffer;
+deque<pair<int, Variant>>	tokenBuffer;
 size_t		currTokenIndex;
 
 void error()
@@ -21,18 +22,28 @@ void error()
 
 void match(const string& tokenType)
 {
-	int currToken;
-	
-	if(tokenBuffer.size()) {
-	  currToken = tokenBuffer.front();
-	  tokenBuffer.pop_front();
-	} else {
-	  currToken = yylex();
+	Variant throwAway;
+	match(tokenType, throwAway);
+}
+
+void match(const string& tokenType, Variant& v)
+{
+	pair<int, Variant> currToken;
+
+	if (tokenBuffer.size()) {
+		currToken = tokenBuffer.front();
+		tokenBuffer.pop_front();
+	}
+	else {
+		currToken.first = yylex();
+		currToken.second = currVariant;
 	}
 
-	if (currToken != tokenMap[tokenType]) {
+	if (currToken.first != tokenMap[tokenType]) {
 		error();
 	}
+
+	v = currToken.second;
 }
 
 string lookahead(unsigned int ahead)
@@ -41,10 +52,12 @@ string lookahead(unsigned int ahead)
 	  int tokensToRead = ahead - tokenBuffer.size() + 1;
 	  
 	  for(int i = 0; i < tokensToRead; ++i) {
-	    tokenBuffer.push_back(yylex());
+		  int tok = yylex();
+		  pair<int, Variant> currToken(tok, currVariant);
+		  tokenBuffer.push_back(currToken);
 	  }
 	}
 
-	deque<int>::const_iterator it = tokenBuffer.begin() + ahead;
-	return reverseTokenMap[*it];
+	deque<pair<int, Variant>>::const_iterator it = tokenBuffer.begin() + ahead;
+	return reverseTokenMap[it->first];
 }
