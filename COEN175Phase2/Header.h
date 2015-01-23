@@ -10,7 +10,7 @@
 void match(const std::string& tokenType);
 void match(const std::string& tokenType, Variant& v);
 std::string lookahead(unsigned int ahead = 0);
-void Expression();
+TreeNode<Variant>* Expression();
 
 void TranslationUnit();
 void GlobalDeclaration(TreeNode<std::vector<Symbol>>& scope);
@@ -27,5 +27,5 @@ void DeclaratorList(TreeNode<std::vector<Symbol>>& scope);
 void Declarator(Symbol& s, eSpecifier spec);
 void Statements(TreeNode<std::vector<Symbol>>& scope);
 void Statement(TreeNode<std::vector<Symbol>>& scope);
-void ExpressionList();
+std::list<TreeNode<Variant>*> ExpressionList();
 int	 Number();

@@ -889,7 +889,7 @@ YY_RULE_SETUP
 case 8:
 YY_RULE_SETUP
 #line 39 "./lexer.l"
-{ currVariant.setVal(CHARACTER, yytext); return tokenMap["CHARACTER"]; }
+{ currVariant.setVal(CHAR, yytext); return tokenMap["CHARACTER"]; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
@@ -899,12 +899,12 @@ YY_RULE_SETUP
 case 10:
 YY_RULE_SETUP
 #line 41 "./lexer.l"
-{ currVariant.setVal(INTEGER, yytext); return tokenMap["INTEGER"]; }
+{ currVariant.setVal(INT, yytext); return tokenMap["INTEGER"]; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
 #line 42 "./lexer.l"
-{ currVariant.setVal(LONGINTEGER, yytext); return tokenMap["LONGINTEGER"]; }
+{ currVariant.setVal(LONGINT, yytext); return tokenMap["LONGINTEGER"]; }
 	YY_BREAK
 case 12:
 /* rule 12 can match eol */
@@ -1463,7 +1463,7 @@ extern int isatty (int );
         b->yy_bs_column = 0;
     }
 
-        b->yy_is_interactive = file ? (isatty( fileno(file) ) > 0) : 0;
+        b->yy_is_interactive = file ? (_isatty( _fileno(file) ) > 0) : 0;
     
 	errno = oerrno;
 }

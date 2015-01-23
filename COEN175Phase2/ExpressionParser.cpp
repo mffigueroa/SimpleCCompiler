@@ -1,10 +1,12 @@
 #include <iostream>
 #include <set>
 #include <map>
+#include <string>
 
 using namespace std;
 
 #include "Header.h"
+#include "Tree.h"
 
 class ParseLevelFunctor {
 public:
@@ -24,7 +26,7 @@ public:
 		}
 	}
 
-	virtual void operator()();
+	virtual TreeNode<Variant>* operator()();
 protected:
 	set<string>			m_operatorSet;
 	map<string, string>	m_operatorNames;
@@ -35,21 +37,21 @@ class PrefixParseLevelFunctor : public ParseLevelFunctor {
 public:
 	PrefixParseLevelFunctor(const set<string>& operatorSet, const map<string, string>& operatorNames, ParseLevelFunctor* nextLevel)
 		: ParseLevelFunctor(operatorSet, operatorNames, nextLevel) {}
-	virtual void operator()();
+	virtual TreeNode<Variant>* operator()();
 };
 
 class CastParseLevelFunctor : public ParseLevelFunctor {
 public:
 	CastParseLevelFunctor(ParseLevelFunctor* nextLevel)
 		: ParseLevelFunctor(nextLevel) {}
-	virtual void operator()();
+	virtual TreeNode<Variant>* operator()();
 };
 
 class ArrayRefParseLevelFunctor : public ParseLevelFunctor {
 public:
 	ArrayRefParseLevelFunctor(ParseLevelFunctor* nextLevel)
 		: ParseLevelFunctor(nextLevel){}
-	virtual void operator()();
+	virtual TreeNode<Variant>* operator()();
 };
 
 class FinalParseLevelFunctor : public ParseLevelFunctor {
@@ -59,7 +61,7 @@ public:
 
 	void SetFirstLevel(ParseLevelFunctor* firstLevel);
 
-	virtual void operator()();
+	virtual TreeNode<Variant>* operator()();
 private:
 	ParseLevelFunctor* m_firstLevel;
 };
@@ -67,7 +69,7 @@ private:
 class ExpressionParser {
 public:
 	ExpressionParser();
-	void operator()();
+	TreeNode<Variant>* operator()();
 private:
 	ParseLevelFunctor*		m_tenthLvl;
 };
@@ -77,19 +79,39 @@ void FinalParseLevelFunctor::SetFirstLevel(ParseLevelFunctor* firstLevel)
 	m_firstLevel = firstLevel;
 }
 
-void ParseLevelFunctor::operator()()
+TreeNode<Variant>* ParseLevelFunctor::operator()()
 {
-	(*m_nextLevel)();
+	TreeNode<Variant>* childNode = (*m_nextLevel)();
+	TreeNode<Variant> *rootNode = 0, *parentNode = 0;
 
 	for (set<string>::const_iterator op = m_operatorSet.find(lookahead());
 		op != m_operatorSet.end(); op = m_operatorSet.find(lookahead())) {
 			match(*op);
-			(*m_nextLevel)();
+
+			if (!rootNode) {
+				rootNode = new TreeNode<Variant>;
+				rootNode->getVal().setVal(STRING, m_operatorNames[*op]);
+				parentNode = rootNode;
+				rootNode->addChild(childNode);
+			} else {
+				parentNode = new TreeNode<Variant>(parentNode);
+				parentNode->getVal().setVal(STRING, m_operatorNames[*op]);
+			}
+
+			childNode = (*m_nextLevel)();
+			parentNode->addChild(childNode);
+
 			cout << m_operatorNames[*op] << endl;
+	}
+
+	if (rootNode) {
+		return rootNode;
+	} else {
+		return childNode;
 	}
 }
 
-void PrefixParseLevelFunctor::operator()()
+TreeNode<Variant>* PrefixParseLevelFunctor::operator()()
 {
 	set<string>::const_iterator op = m_operatorSet.find(lookahead());
 
@@ -103,15 +125,20 @@ void PrefixParseLevelFunctor::operator()()
 			match(")");
 		}
 
-		(*this)();
+		TreeNode<Variant>* rootNode = new TreeNode<Variant>;
+		rootNode->getVal().setVal(STRING, m_operatorNames[*op]);
+
+		rootNode->addChild((*this)());
 
 		cout << m_operatorNames[*op] << endl;
+
+		return rootNode;
 	} else {
-		(*m_nextLevel)();
+		return (*m_nextLevel)();
 	}
 }
 
-void CastParseLevelFunctor::operator()()
+TreeNode<Variant>* CastParseLevelFunctor::operator()()
 {
 	if (lookahead() == "(" &&
 		(lookahead(1) == "int" || lookahead(1) == "long" || lookahead(1) == "char")) {
@@ -120,46 +147,74 @@ void CastParseLevelFunctor::operator()()
 			Pointers();
 			match(")");
 
-			(*m_nextLevel)();
+			TreeNode<Variant>* rootNode = new TreeNode<Variant>;
+			rootNode->getVal().setVal(STRING, "CAST");
+
+			rootNode->addChild((*m_nextLevel)());
 			cout << "cast" << endl;
 	} else {
-		(*m_nextLevel)();
+		return (*m_nextLevel)();
 	}
 }
 
-void ArrayRefParseLevelFunctor::operator()()
+TreeNode<Variant>* ArrayRefParseLevelFunctor::operator()()
 {
-	(*m_nextLevel)();
+	TreeNode<Variant>* rootNode = (*m_nextLevel)();
+	TreeNode<Variant>* parentNode = rootNode;
 
 	while (lookahead() == "[") {
 		match("[");
-		Expression();
+
+		TreeNode<Variant>* childNode = new TreeNode<Variant>(parentNode);
+		childNode->getVal().setVal(STRING, "[]");
+		childNode->addChild(Expression());
 		cout << "index" << endl;
 		match("]");
 	}
+	
+	return rootNode;
 }
 
-void FinalParseLevelFunctor::operator()()
+TreeNode<Variant>* FinalParseLevelFunctor::operator()()
 {
 	string currToken = lookahead();
 
 	if (currToken == "IDENTIFIER") {
-		match("IDENTIFIER");
+		Variant v;
+		match("IDENTIFIER", v);
+
+		TreeNode<Variant>* rootNode = new TreeNode<Variant>;
+		rootNode->getVal() = v;
 
 		if (lookahead() == "(") {
 			match("(");
 
+			TreeNode<Variant>* funcCallNode = new TreeNode<Variant>(rootNode);
+			funcCallNode->getVal().setVal(STRING, "()");
+
 			if (lookahead() != ")") {
-				ExpressionList();
+				list<TreeNode<Variant>*> nodes = ExpressionList();
+
+				for (list<TreeNode<Variant>*>::const_iterator i = nodes.begin(), i_end = nodes.end();
+					i != i_end; ++i) {
+						funcCallNode->addChild(*i);
+				}
 			}
 
 			match(")");
 		}
+
+		return rootNode;
 	} else if (currToken == "INTEGER" || currToken == "LONGINTEGER" || currToken == "STRING" || currToken == "CHARACTER") {
-		match(currToken);
+		Variant v;
+		match(currToken, v);
+
+		TreeNode<Variant>* rootNode = new TreeNode<Variant>;
+		rootNode->getVal() = v;
+		return rootNode;
 	} else {
 		match("(");
-		(*m_firstLevel)();
+		return (*m_firstLevel)();
 		match(")");
 	}
 }
@@ -247,15 +302,15 @@ ExpressionParser::ExpressionParser()
 	firstLevel->SetFirstLevel(m_tenthLvl);
 }
 
-void ExpressionParser::operator()()
+TreeNode<Variant>* ExpressionParser::operator()()
 {
-	(*m_tenthLvl)();
+	return (*m_tenthLvl)();
 }
 
-void Expression()
+TreeNode<Variant>* Expression()
 {
 	static ExpressionParser expr;
-	expr();
+	return expr();
 }
 
 /*

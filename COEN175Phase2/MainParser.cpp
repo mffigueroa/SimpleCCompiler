@@ -103,7 +103,7 @@ void GlobalDeclarator(Symbol& s, eSpecifier spec)
 
 void FunctionDefinition(TreeNode<vector<Symbol>>& scope)
 {
-	TreeNode<vector<Symbol>>* funcScope = new TreeNode<vector<Symbol>>(scope);
+	TreeNode<vector<Symbol>>* funcScope = new TreeNode<vector<Symbol>>(&scope);
 
 	Symbol s;
 
@@ -118,6 +118,8 @@ void FunctionDefinition(TreeNode<vector<Symbol>>& scope)
 	match("(");
 	Parameters(s.type.funcParams);
 	match(")");
+
+	scope.getVal().push_back(s);
 
 	match("{");
 	Declarations(*funcScope);
@@ -247,7 +249,9 @@ void Statement(TreeNode<vector<Symbol>>& scope)
 		Expression();
 		if (lookahead() == "=") {
 			match("=");
-			Expression();
+
+			TreeNode<Variant>* v;
+			v = Expression();
 			match(";");
 		} else {
 			match(";");
@@ -255,14 +259,17 @@ void Statement(TreeNode<vector<Symbol>>& scope)
 	}
 }
 
-void ExpressionList()
+list<TreeNode<Variant>*> ExpressionList()
 {
-	Expression();
+	list<TreeNode<Variant>*> nodes;
+	nodes.push_back(Expression());
 
 	while (lookahead() == ",") {
 		match(",");
-		Expression();
+		nodes.push_back(Expression());
 	}
+
+	return nodes;
 }
 
 int Number()

@@ -36,10 +36,10 @@ WHITESPACE	[\n\t\v\r ]+
 {KEYWORD} { return tokenMap[yytext]; }
 {IDENTIFIER} { currVariant.setVal(IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
 {STRING} { currVariant.setVal(STRING, yytext); return tokenMap["STRING"]; }
-{CHARACTER} { currVariant.setVal(CHARACTER, yytext); return tokenMap["CHARACTER"]; }
+{CHARACTER} { currVariant.setVal(CHAR, yytext); return tokenMap["CHARACTER"]; }
 {OPERATOR} { return tokenMap[yytext]; }
-{INTEGER} { currVariant.setVal(INTEGER, yytext); return tokenMap["INTEGER"]; }
-{LONGINTEGER} { currVariant.setVal(LONGINTEGER, yytext); return tokenMap["LONGINTEGER"]; }
+{INTEGER} { currVariant.setVal(INT, yytext); return tokenMap["INTEGER"]; }
+{LONGINTEGER} { currVariant.setVal(LONGINT, yytext); return tokenMap["LONGINTEGER"]; }
 {WHITESPACE} {}
 . { cerr << "Invalid character: " << yytext << endl; }
 

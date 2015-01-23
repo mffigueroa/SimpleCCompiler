@@ -10,13 +10,17 @@ public:
 	TreeNode(TreeNode<T>* parent = 0)
 		: m_parent(parent)
 	{
-		parent->addChild(this);
+		if (parent) {
+			parent->addChild(this);
+		}
 	}
 
 	void setParent(TreeNode<T>* parent)
 	{
 		m_parent = parent;
-		parent->addChild(this);
+		if (parent) {
+			parent->addChild(this);
+		}
 	}
 
 	typename std::list<TreeNode<T>*>::const_iterator getChildIterator() const
@@ -27,6 +31,12 @@ public:
 	typename std::list<TreeNode<T>*>::iterator		getChildIterator()
 	{
 		return m_children.begin();
+	}
+
+	void addChild(TreeNode<T>* child)
+	{
+		m_children.push_back(child);
+		child->m_parent = this;
 	}
 
 	const TreeNode<T>&	getParent() const
@@ -43,11 +53,6 @@ public:
 	const T& getVal() const { return m_values; }
 
 private:
-	void addChild(TreeNode<T>* child)
-	{
-		m_children.push_back(child);
-	}
-
 	TreeNode<T>*			m_parent;
 	std::list<TreeNode<typename T>*> m_children;
 	T						m_values;
