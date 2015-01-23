@@ -4,12 +4,16 @@
 #include <string>
 #include <map>
 #include "Tokens.h"
+#include "Type.h"
+#include "Variant.h"
 
 using namespace std;
 
+Variant currVariant;
 
 
-#line 13 "./lex.cc"
+
+#line 17 "./lex.cc"
 
 #define  YY_INT_ALIGNED short int
 
@@ -577,7 +581,7 @@ char *yytext;
 #line 1 "./lexer.l"
 
 
-#line 581 "./lex.cc"
+#line 585 "./lex.cc"
 
 #define INITIAL 0
 #define INCOMMENT 1
@@ -758,11 +762,11 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 25 "./lexer.l"
+#line 29 "./lexer.l"
 
 
 
-#line 766 "./lex.cc"
+#line 770 "./lex.cc"
 
 	if ( !(yy_init) )
 		{
@@ -847,78 +851,78 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 28 "./lexer.l"
+#line 32 "./lexer.l"
 { BEGIN(INITIAL); }
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 29 "./lexer.l"
+#line 33 "./lexer.l"
 {}
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 30 "./lexer.l"
+#line 34 "./lexer.l"
 {}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 31 "./lexer.l"
+#line 35 "./lexer.l"
 { BEGIN(INCOMMENT); }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 32 "./lexer.l"
+#line 36 "./lexer.l"
 { return tokenMap[yytext]; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 33 "./lexer.l"
-{ return tokenMap["IDENTIFIER"]; }
+#line 37 "./lexer.l"
+{ currVariant.setVal(IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 34 "./lexer.l"
-{ return tokenMap["STRING"]; }
+#line 38 "./lexer.l"
+{ currVariant.setVal(STRING, yytext); return tokenMap["STRING"]; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 35 "./lexer.l"
-{ return tokenMap["CHARACTER"]; }
+#line 39 "./lexer.l"
+{ currVariant.setVal(CHARACTER, yytext); return tokenMap["CHARACTER"]; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 36 "./lexer.l"
+#line 40 "./lexer.l"
 { return tokenMap[yytext]; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 37 "./lexer.l"
-{ return tokenMap["INTEGER"]; }
+#line 41 "./lexer.l"
+{ currVariant.setVal(INTEGER, yytext); return tokenMap["INTEGER"]; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 38 "./lexer.l"
-{ return tokenMap["LONGINTEGER"]; }
+#line 42 "./lexer.l"
+{ currVariant.setVal(LONGINTEGER, yytext); return tokenMap["LONGINTEGER"]; }
 	YY_BREAK
 case 12:
 /* rule 12 can match eol */
 YY_RULE_SETUP
-#line 39 "./lexer.l"
+#line 43 "./lexer.l"
 {}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 40 "./lexer.l"
+#line 44 "./lexer.l"
 { cerr << "Invalid character: " << yytext << endl; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 42 "./lexer.l"
+#line 46 "./lexer.l"
 ECHO;
 	YY_BREAK
-#line 922 "./lex.cc"
+#line 926 "./lex.cc"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(INCOMMENT):
 	yyterminate();
@@ -1459,7 +1463,7 @@ extern int isatty (int );
         b->yy_bs_column = 0;
     }
 
-        b->yy_is_interactive = file ? (_isatty( _fileno(file) ) > 0) : 0;
+        b->yy_is_interactive = file ? (isatty( fileno(file) ) > 0) : 0;
     
 	errno = oerrno;
 }
@@ -1880,7 +1884,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 42 "./lexer.l"
+#line 46 "./lexer.l"
 
 
 
