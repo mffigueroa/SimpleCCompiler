@@ -23,20 +23,17 @@ public:
 		}
 	}
 
-	typename std::list<TreeNode<T>*>::const_iterator getChildIterator() const
+	typename const std::list<TreeNode<T>*>& getChildList() const
 	{
-		return m_children.begin();
-	}
-
-	typename std::list<TreeNode<T>*>::iterator		getChildIterator()
-	{
-		return m_children.begin();
+		return m_children;
 	}
 
 	void addChild(TreeNode<T>* child)
 	{
-		m_children.push_back(child);
-		child->m_parent = this;
+		if (child) {
+			m_children.push_back(child);
+			child->m_parent = this;
+		}
 	}
 
 	const TreeNode<T>&	getParent() const

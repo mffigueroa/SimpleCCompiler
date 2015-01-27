@@ -11,6 +11,9 @@ public:
 	Symbol(){}
 	std::string identifier;
 	Type		type;
+
+	bool operator==(const Symbol& rhs);
+	bool operator!=(const Symbol& rhs);
 };
 
 #endif

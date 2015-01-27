@@ -73,7 +73,10 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ExpressionParser.cpp" />
     <ClCompile Include="MainParser.cpp" />
+    <ClCompile Include="outputDotFile.cpp" />
+    <ClCompile Include="Symbol.cpp" />
     <ClCompile Include="Tokens.cpp" />
+    <ClCompile Include="Type.cpp" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="Variant.cpp" />
   </ItemGroup>

@@ -8,7 +8,10 @@
 
 using namespace std;
 
-Variant currVariant;
+Variant				currVariant;
+unsigned int		currLineNumber = 0;
+
+void updateLineNumber(const char* sz);
 }
 
 DIGIT	[0-9]
@@ -30,17 +33,26 @@ WHITESPACE	[\n\t\v\r ]+
 
 
 <INCOMMENT>\*\/ { BEGIN(INITIAL); }
-<INCOMMENT>(.|\n) {}
-<INCOMMENT>{WHITESPACE} {}
+<INCOMMENT>[^\n] {}
+<INCOMMENT>{WHITESPACE} { updateLineNumber(yytext); }
 \/\* { BEGIN(INCOMMENT); }
 {KEYWORD} { return tokenMap[yytext]; }
 {IDENTIFIER} { currVariant.setVal(IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
-{STRING} { currVariant.setVal(STRING, yytext); return tokenMap["STRING"]; }
-{CHARACTER} { currVariant.setVal(CHAR, yytext); return tokenMap["CHARACTER"]; }
+{STRING} { updateLineNumber(yytext); currVariant.setVal(STRING, yytext); return tokenMap["STRING"]; }
+{CHARACTER} { updateLineNumber(yytext); currVariant.setVal(CHAR, yytext); return tokenMap["CHARACTER"]; }
 {OPERATOR} { return tokenMap[yytext]; }
 {INTEGER} { currVariant.setVal(INT, yytext); return tokenMap["INTEGER"]; }
 {LONGINTEGER} { currVariant.setVal(LONGINT, yytext); return tokenMap["LONGINTEGER"]; }
-{WHITESPACE} {}
+{WHITESPACE} { updateLineNumber(yytext); }
 . { cerr << "Invalid character: " << yytext << endl; }
 
 %%
+
+void updateLineNumber(const char* sz)
+{
+	for(; *sz; ++sz) {
+		if(*sz == '\n') {
+			++currLineNumber;
+		}
+	}
+}

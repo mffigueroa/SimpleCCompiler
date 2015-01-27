@@ -35,9 +35,14 @@ size_t Pointers()
 	return indirectionLvls;
 }
 
-void TranslationUnit()
+TreeNode<Variant>* TranslationUnit()
 {
-	TreeNode<vector<Symbol>> transUnitScope;
+	TreeNode<Variant>*	astRootNode = new TreeNode<Variant>;
+	ScopeStack			transUnitScope;
+
+	transUnitScope.push_back(Scope());
+
+	astRootNode->getVal().setVal(STRING, "TranslationUnit");
 
 	while (lookahead() != "EOF") {
 		// both GlobalDeclaration and FunctionDefinition
@@ -50,35 +55,38 @@ void TranslationUnit()
 
 		if (lookahead(lastPointerToken + 1) == "(") {
 			if (lookahead(lastPointerToken + 2) == ")") {
-				GlobalDeclaration(transUnitScope);
+				astRootNode->addChild(GlobalDeclaration(transUnitScope));
 			} else {
-				FunctionDefinition(transUnitScope);
+				astRootNode->addChild(FunctionDefinition(transUnitScope));
 			}
 		} else {
-			GlobalDeclaration(transUnitScope);
+			astRootNode->addChild(GlobalDeclaration(transUnitScope));
 		}
 	}
+
+	return astRootNode;
 }
 
-void GlobalDeclaration(TreeNode<vector<Symbol>>& scope)
+TreeNode<Variant>* GlobalDeclaration(ScopeStack& stack)
 {
+	TreeNode<Variant>* rootNode = new TreeNode<Variant>;
 	eSpecifier spec = Specifier();
 
-	Symbol s;
-	GlobalDeclarator(s, spec);
-	scope.getVal().push_back(s);
+	rootNode->getVal().setVal(STRING, GetSpecifierName(spec));
+	rootNode->addChild(GlobalDeclarator(stack, spec));
 
 	while (lookahead() == ",") {
 		match(",");
-		GlobalDeclarator(s, spec);
-		scope.getVal().push_back(s);
+		rootNode->addChild(GlobalDeclarator(stack, spec));
 	}
 
 	match(";");
+	return rootNode;
 }
 
-void GlobalDeclarator(Symbol& s, eSpecifier spec)
+TreeNode<Variant>* GlobalDeclarator(ScopeStack& stack, eSpecifier spec)
 {
+	Symbol s;
 	s.type.lvlsOfIndirection = Pointers();
 
 	Variant ident;
@@ -99,11 +107,30 @@ void GlobalDeclarator(Symbol& s, eSpecifier spec)
 
 		s.type.isFunction = true;
 	}
+
+	// if the variable has been declared already, make sure
+	// its of the same type. if not, declare it in the scope.
+	Symbol symbolLookup;
+	if (LookupSymbol(stack, s.identifier, &symbolLookup)) {
+		if (s != symbolLookup) {
+			outputError("E3: conflicting types for '" + s.identifier + "'");
+		}
+	} else {
+		stack.back()[s.identifier] = s;
+	}
+
+	TreeNode<Variant>* node = new TreeNode<Variant>;
+	node->getVal().setVal(STRING, ident.getStrVal());
+
+	return node;
 }
 
-void FunctionDefinition(TreeNode<vector<Symbol>>& scope)
+TreeNode<Variant>* FunctionDefinition(ScopeStack& stack)
 {
-	TreeNode<vector<Symbol>>* funcScope = new TreeNode<vector<Symbol>>(&scope);
+	// open the function's scope
+	stack.push_back(Scope());
+
+	TreeNode<Variant>* rootNode = new TreeNode<Variant>;
 
 	Symbol s;
 
@@ -115,38 +142,59 @@ void FunctionDefinition(TreeNode<vector<Symbol>>& scope)
 	match("IDENTIFIER", v);
 	s.identifier = v.getStrVal();
 
+	rootNode->getVal().setVal(STRING, s.identifier);
+
 	match("(");
-	Parameters(s.type.funcParams);
+	rootNode->addChild(Parameters(stack, s.type.funcParams));
 	match(")");
 
-	scope.getVal().push_back(s);
+	// check if function already defined, if so, error.
+	// otherwise define it in the scope.
+	Symbol lookupSymbol;
+	if (LookupSymbol(stack, s.identifier, &lookupSymbol)) {
+		outputError("E1: redefinition of '" + s.identifier + "'");
+	} else {
+		ScopeStack::reverse_iterator i = ++stack.rbegin();
+		(*i)[s.identifier] = s;
+	}
 
 	match("{");
-	Declarations(*funcScope);
-	Statements(*funcScope);
+	rootNode->addChild(Declarations(stack));
+	rootNode->addChild(Statements(stack));
 	match("}");
+
+	// close the function's scope
+	stack.pop_back();
+
+	return rootNode;
 }
 
-void Parameters(vector<Symbol*>& params)
+TreeNode<Variant>* Parameters(ScopeStack& stack, vector<Symbol*>& funcParams)
 {
 	if (lookahead() == "void") {
 		match("void");
+		return NULL;
 	} else {
+		TreeNode<Variant>* rootNode = new TreeNode<Variant>;
+		rootNode->getVal().setVal(STRING, "Parameters");
+
 		Symbol* a = new Symbol;
-		Parameter(*a);
-		params.push_back(a);
+		rootNode->addChild(Parameter(stack, *a));
+		funcParams.push_back(a);
 
 		while (lookahead() == ",") {
 			match(",");
 
 			a = new Symbol;
-			Parameter(*a);
-			params.push_back(a);
+			rootNode->addChild(Parameter(stack, *a));
+			funcParams.push_back(a);
 		}
+
+		return rootNode;
 	}
 }
 
-void Parameter(Symbol& s)
+TreeNode<Variant>* Parameter(ScopeStack& stack, Symbol& s)
 {
 	s.type.spec = Specifier();
 	s.type.lvlsOfIndirection = Pointers();
@@ -154,38 +202,62 @@ void Parameter(Symbol& s)
 	Variant v;
 	match("IDENTIFIER", v);
 	s.identifier = v.getStrVal();
+
+	ScopeStack::reverse_iterator currScope = stack.rbegin();
+	Scope::const_iterator it = currScope->find(s.identifier);
+	// Is the parameter already defined in the current scope?
+	// If so, error, otherwise define it.
+	if (it != currScope->end()) {
+		outputError("E2: redeclaration of '" + s.identifier + "'");
+	} else {
+		(*currScope)[s.identifier] = s;
+	}
+
+	TreeNode<Variant>* node = new TreeNode<Variant>;
+	node->getVal().setVal(STRING, GetSpecifierName(s.type.spec) + "_" + s.identifier);
+	return node;
 }
 
-void Declarations(TreeNode<vector<Symbol>>& scope)
+TreeNode<Variant>* Declarations(ScopeStack& stack)
 {
+	TreeNode<Variant>* rootNode = new TreeNode<Variant>;
+	rootNode->getVal().setVal(STRING, "Decls");
+
 	for (string currToken = lookahead();
 		currToken == "int" || currToken == "long" || currToken == "char";
 		currToken = lookahead()) {
-			Declaration(scope);
+			list<TreeNode<Variant>*> nodes = Declaration(stack);
+			
+			for (list<TreeNode<Variant>*>::const_iterator it = nodes.begin(), it_end = nodes.end();
+				it != it_end; ++it) {
+					rootNode->addChild(*it);
+			}
 	}
+
+	return rootNode;
 }
 
-void Declaration(TreeNode<vector<Symbol>>& scope)
+list<TreeNode<Variant>*> Declaration(ScopeStack& stack)
 {
+	list<TreeNode<Variant>*> decls;
+
 	eSpecifier spec = Specifier();
 
-	Symbol a;
-	Declarator(a, spec);
-	scope.getVal().push_back(a);
+	decls.push_back(Declarator(stack, spec));
 
 	while (lookahead() == ",") {
 		match(",");
 
-		Symbol b;
-		Declarator(b, spec);
-		scope.getVal().push_back(b);
+		decls.push_back(Declarator(stack, spec));
 	}
 
 	match(";");
+	return decls;
 }
 
-void Declarator(Symbol& s, eSpecifier spec)
+TreeNode<Variant>* Declarator(ScopeStack& stack, eSpecifier spec)
 {
+	Symbol s;
 	s.type.lvlsOfIndirection = Pointers();
 
 	Variant ident;
@@ -196,77 +268,122 @@ void Declarator(Symbol& s, eSpecifier spec)
 	s.type.isFunction = false;
 	s.type.arraySize = 0;
 
+	TreeNode<Variant>* node = new TreeNode<Variant>;
+	node->getVal().setVal(STRING, GetSpecifierName(spec) + "_" + s.identifier);
+
 	if (lookahead() == "[")	{
 		match("[");
 		s.type.arraySize = Number();
 		match("]");
 	}
+
+	ScopeStack::reverse_iterator currScope = stack.rbegin();
+	Scope::const_iterator it = currScope->find(s.identifier);
+	// Is the variable already defined in the current scope?
+	// If so, error, otherwise define it.
+	if (it != currScope->end()) {
+		outputError("E2: redeclaration of '" + s.identifier + "'");
+	}
+	else {
+		(*currScope)[s.identifier] = s;
+	}
+
+	return node;
 }
 
-void Statements(TreeNode<vector<Symbol>>& scope)
+TreeNode<Variant>* Statements(ScopeStack& stack)
 {
+	TreeNode<Variant>* rootNode = new TreeNode<Variant>;
+	rootNode->getVal().setVal(STRING, "stmts");
+
 	while (lookahead() != "}")
 	{
-		Statement(scope);
+		rootNode->addChild(Statement(stack));
 	}
+
+	return rootNode;
 }
 
-void Statement(TreeNode<vector<Symbol>>& scope)
+TreeNode<Variant>* Statement(ScopeStack& stack)
 {
 	string currToken = lookahead();
+
+	TreeNode<Variant>* astRootNode = new TreeNode<Variant>;
 
 	if (currToken == "{") {
 		match("{");
 
-		TreeNode<vector<Symbol>>* blockScope = new TreeNode<vector<Symbol>>(&scope);
+		stack.push_back(Scope());
 
-		Declarations(*blockScope);
-		Statements(*blockScope);
+		astRootNode->getVal().setVal(STRING, "block");
+
+		astRootNode->addChild(Declarations(stack));
+		astRootNode->addChild(Statements(stack));
+
+		stack.pop_back();
 
 		match("}");
 	} else if (currToken == "return") {
 		match("return");
-		Expression();
+
+		astRootNode->getVal().setVal(STRING, "return");
+
+		astRootNode->addChild(Expression(stack));
 		match(";");
 	} else if (currToken == "while") {
 		match("while");
 		match("(");
-		Expression();
+
+		astRootNode->getVal().setVal(STRING, "while");
+
+		astRootNode->addChild(Expression(stack));
 		match(")");
-		Statement(scope);
+		astRootNode->addChild(Statement(stack));
 	} else if (currToken == "if") {
 		match("if");
 		match("(");
-		Expression();
+
+		astRootNode->getVal().setVal(STRING, "if");
+
+		astRootNode->addChild(Expression(stack));
 		match(")");
-		Statement(scope);
+
+		astRootNode->addChild(Statement(stack));
 
 		if (lookahead() == "else") {
 			match("else");
-			Statement(scope);
+
+			TreeNode<Variant>* astElseNode = new TreeNode<Variant>(astRootNode);
+			astElseNode->getVal().setVal(STRING, "else");
+			astElseNode->addChild(Statement(stack));
 		}
 	} else {
-		Expression();
+		TreeNode<Variant>* astExpNode = Expression(stack);
+
 		if (lookahead() == "=") {
 			match("=");
 
-			TreeNode<Variant>* v;
-			v = Expression();
+			astRootNode->getVal().setVal(STRING, "assign");
+			astRootNode->addChild(astExpNode);
+			astRootNode->addChild(Expression(stack));
 			match(";");
 		} else {
 			match(";");
+			return astExpNode;
 		}
 	}
+
+	return astRootNode;
 }
 
-list<TreeNode<Variant>*> ExpressionList()
+list<TreeNode<Variant>*> ExpressionList(ScopeStack& stack)
 {
 	list<TreeNode<Variant>*> nodes;
-	nodes.push_back(Expression());
+	nodes.push_back(Expression(stack));
 
 	while (lookahead() == ",") {
 		match(",");
-		nodes.push_back(Expression());
+		nodes.push_back(Expression(stack));
 	}
 
 	return nodes;

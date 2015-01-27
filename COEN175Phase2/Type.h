@@ -20,6 +20,9 @@ public:
 		: spec(INT), lvlsOfIndirection(0)
 	{}
 
+	bool operator==(const Type& rhs);
+	bool operator!=(const Type& rhs);
+
 	bool					isFunction;
 	eSpecifier				spec;
 	size_t					lvlsOfIndirection;
