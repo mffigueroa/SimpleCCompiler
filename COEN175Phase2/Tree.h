@@ -3,6 +3,8 @@
 
 #include <list>
 
+using namespace std;
+
 template <typename T>
 class TreeNode
 {
@@ -23,7 +25,7 @@ public:
 		}
 	}
 
-	typename const std::list<TreeNode<T>*>& getChildList() const
+	const list<TreeNode<T>*>& getChildList() const
 	{
 		return m_children;
 	}
@@ -51,7 +53,7 @@ public:
 
 private:
 	TreeNode<T>*			m_parent;
-	std::list<TreeNode<typename T>*> m_children;
+	list<TreeNode<T>*> m_children;
 	T						m_values;
 };
 

@@ -14,7 +14,7 @@ string outputNodeDotNotation(TreeNode<Variant>* node, map<string, int>& idUsage,
 
 void outputDotFile(TreeNode<Variant>* root, const std::string& filename)
 {
-	ofstream fp(filename, ios::out);
+	ofstream fp(filename.c_str(), ios::out);
 
 	map<string, int> idUsage;
 
@@ -35,7 +35,7 @@ string GetNodeName(const string& nodeName, map<string, int>& idUsage)
 	string newNodeName = nodeName;
 
 	char buf[256];
-	_itoa_s(idUsage[nodeName], buf, 256, 10);
+	snprintf(buf, 256, "%d", idUsage[nodeName]);
 
 	newNodeName += "_";
 	newNodeName += buf;
@@ -83,7 +83,7 @@ string printVariant(const Variant& v)
 		return string(v.getCharVal(), 1);
 	} else if (v.getType() == INT || v.getType() == LONGINT) {
 		char buf[256];
-		_itoa_s(v.getIntVal(), buf, 256, 10);
+		snprintf(buf, 256, "%d", v.getIntVal());
 		return "int_" + string(buf);
 	} else {
 		return "Undefined Variant";
