@@ -20,19 +20,13 @@ typedef pair<int, TokenDouble>			TokenTriple;
 deque<TokenTriple>	tokenBuffer;
 size_t				currTokenIndex;
 
-void error()
+void error(unsigned int lineNumber)
 {
-	cout << "Error" << endl;
+	cerr << "Error on line " << lineNumber << "." << endl;
 	exit(0);
 }
 
-void match(const string& tokenType)
-{
-	Variant throwAway;
-	match(tokenType, throwAway);
-}
-
-void match(const string& tokenType, Variant& v)
+void match(const string& tokenType, Variant* v, unsigned int* lineNumber)
 {
 	TokenTriple currToken;
 
@@ -42,13 +36,19 @@ void match(const string& tokenType, Variant& v)
 	} else {
 		currToken.first = yylex();
 		currToken.second.first = currVariant;
+		currToken.second.second = currLineNumber;
 	}
 
 	if (currToken.first != tokenMap[tokenType]) {
-		error();
+		error(currToken.second.second);
 	}
 
-	v = currToken.second.first;
+	if (v) {
+		*v = currToken.second.first;
+	}
+	if (lineNumber) {
+		*lineNumber = currToken.second.second;
+	}
 }
 
 string lookahead(unsigned int ahead)
@@ -100,7 +100,7 @@ bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, Symbol
 	return false;
 }
 
-void outputError(const std::string& err)
+void outputError(unsigned int lineNumber, const std::string& err)
 {
-	cerr << err << endl;
+	cerr << "line " << lineNumber << ": " << err << endl;
 }

@@ -9,7 +9,7 @@
 using namespace std;
 
 Variant				currVariant;
-unsigned int		currLineNumber = 0;
+unsigned int		currLineNumber = 1;
 
 void updateLineNumber(const char* sz);
 }
