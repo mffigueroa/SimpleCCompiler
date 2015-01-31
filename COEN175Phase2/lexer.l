@@ -36,13 +36,13 @@ WHITESPACE	[\n\t\v\r ]+
 <INCOMMENT>[^\n] {}
 <INCOMMENT>{WHITESPACE} { updateLineNumber(yytext); }
 \/\* { BEGIN(INCOMMENT); }
-{KEYWORD} { return tokenMap[yytext]; }
-{IDENTIFIER} { currVariant.setVal(IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
-{STRING} { updateLineNumber(yytext); currVariant.setVal(STRING, yytext); return tokenMap["STRING"]; }
-{CHARACTER} { updateLineNumber(yytext); currVariant.setVal(CHAR, yytext); return tokenMap["CHARACTER"]; }
+{KEYWORD} { if(isSpecifier(yytext)) { currVariant.setVal(); } return tokenMap[yytext]; }
+{IDENTIFIER} { currVariant.setVal(Variant::IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
+{Variant::STRING} { updateLineNumber(yytext); currVariant.setVal(Variant::STRING, yytext); return tokenMap["STRING"]; }
+{CHARACTER} { updateLineNumber(yytext); currVariant.setVal(Variant::CHAR, yytext); return tokenMap["CHARACTER"]; }
 {OPERATOR} { return tokenMap[yytext]; }
-{INTEGER} { currVariant.setVal(INT, yytext); return tokenMap["INTEGER"]; }
-{LONGINTEGER} { currVariant.setVal(LONGINT, yytext); return tokenMap["LONGINTEGER"]; }
+{INTEGER} { currVariant.setVal(Variant::INT, yytext); return tokenMap["INTEGER"]; }
+{LONGINTEGER} { currVariant.setVal(Variant::LONGINT, yytext); return tokenMap["LONGINTEGER"]; }
 {WHITESPACE} { updateLineNumber(yytext); }
 . { cerr << "Invalid character: " << yytext << endl; }
 

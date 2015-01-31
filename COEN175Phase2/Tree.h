@@ -46,13 +46,12 @@ public:
 		return *m_parent;
 	}
 
-	T& getVal() { return m_values; }
-	const T& getVal() const { return m_values; }
+	// allow direct modification
+	T	val;
 
 private:
-	TreeNode<T>*			m_parent;
-	std::list<TreeNode<typename T>*> m_children;
-	T						m_values;
+	TreeNode<T>*						m_parent;
+	std::list<TreeNode<typename T>*>	m_children;
 };
 
 #endif

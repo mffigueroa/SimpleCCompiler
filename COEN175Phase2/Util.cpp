@@ -67,24 +67,22 @@ string lookahead(unsigned int ahead)
 	return reverseTokenMap[it->first];
 }
 
-string GetSpecifierName(eSpecifier spec)
+string GetSpecifierName(Type::eSpecifier spec)
 {	
-	if(spec == INT) {
+	if(spec == Type::INT) {
 		return "INT"; 
-	} else if(spec == LONGINT) {
+	} else if (spec == Type::LONGINT) {
 		return "LONGINT";
-	} else if(spec == CHAR) {
+	} else if (spec == Type::CHAR) {
 		return "CHAR";
-	} else if(spec == STRING) {
+	} else if (spec == Type::STRING) {
 		return "STRING";
-	} else if(spec == IDENTIFIER) {
-		return "IDENTIFIER";
 	} else {
 		return "UNDEFINED";
 	}
 }
 
-bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, Symbol* r_symbol)
+bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, SymbolTableRef* r_symbol)
 {
 	for (ScopeStack::const_iterator i = stack.begin(); i != stack.end(); ++i) {
 		Scope::const_iterator j = i->find(symbolName);
@@ -103,4 +101,9 @@ bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, Symbol
 void outputError(unsigned int lineNumber, const std::string& err)
 {
 	cerr << "line " << lineNumber << ": " << err << endl;
+}
+
+bool isSpecifier(const std::string& str)
+{
+	return str == "int" || str == "long" || str == "char";
 }

@@ -885,17 +885,17 @@ YY_RULE_SETUP
 case 6:
 YY_RULE_SETUP
 #line 40 "./lexer.l"
-{ currVariant.setVal(IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
+{ currVariant.setVal(Variant::IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
 #line 41 "./lexer.l"
-{ updateLineNumber(yytext); currVariant.setVal(STRING, yytext); return tokenMap["STRING"]; }
+{ updateLineNumber(yytext); currVariant.setVal(Variant::STRING, yytext); return tokenMap["STRING"]; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
 #line 42 "./lexer.l"
-{ updateLineNumber(yytext); currVariant.setVal(CHAR, yytext); return tokenMap["CHARACTER"]; }
+{ updateLineNumber(yytext); currVariant.setVal(Variant::CHAR, yytext); return tokenMap["CHARACTER"]; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
@@ -905,12 +905,12 @@ YY_RULE_SETUP
 case 10:
 YY_RULE_SETUP
 #line 44 "./lexer.l"
-{ currVariant.setVal(INT, yytext); return tokenMap["INTEGER"]; }
+{ currVariant.setVal(Variant::INT, yytext); return tokenMap["INTEGER"]; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
 #line 45 "./lexer.l"
-{ currVariant.setVal(LONGINT, yytext); return tokenMap["LONGINTEGER"]; }
+{ currVariant.setVal(Variant::LONGINT, yytext); return tokenMap["LONGINTEGER"]; }
 	YY_BREAK
 case 12:
 /* rule 12 can match eol */

@@ -11,27 +11,45 @@
 class Variant
 {
 public:
+	typedef enum
+	{
+		INT = 1,
+		LONGINT,
+		CHAR,
+		STRING,
+		UNDEFINED,
+		IDENTIFIER,
+		SPECIFIER		
+	} VariantType;
+
 	Variant();
-	Variant(eSpecifier spec, const std::string& strVal);
+	Variant(VariantType type, const std::string& strVal);
 	
 	void operator=(const Variant& v);
 
-	void setVal(eSpecifier spec, const std::string& strVal);
-	eSpecifier getType() const;
+	void setVal(VariantType spec, const std::string& strVal);
+	void setVal(Type::eSpecifier spec);
+	void setVal(int i);
+	void setVal(char c);
+	VariantType getType() const;
 
+	Type::eSpecifier	getSpecifierVal() const;
+	std::string	getSymbolVal() const;
 	std::string	getStrVal() const;
 	int			getIntVal() const;
 	char		getCharVal() const;
+
 private:
 	std::string m_strVal;
 
 	union
 	{		
-		int	 m_intVal;
-		char m_charVal;
+		int					m_intVal;
+		char				m_charVal;
+		Type::eSpecifier	m_specVal;
 	};
 
-	eSpecifier m_type;
+	VariantType m_type;
 };
 
 #endif

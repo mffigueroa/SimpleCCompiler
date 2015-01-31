@@ -10,8 +10,8 @@ using namespace std;
 int main()
 {
   CreateTokenMap();
-  TreeNode<Variant>* ast = TranslationUnit();
+  TreeNode<ASTNodeVal>* ast = TranslationUnit();
 
-  outputDotFile(ast, "ast.dot");
+  //outputDotFile(ast, "ast.dot");
   return 0;
 }

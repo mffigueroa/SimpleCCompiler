@@ -26,7 +26,7 @@ public:
 		}
 	}
 
-	virtual TreeNode<Variant>* operator()(ScopeStack& variableStack, ScopeStack& functionStack);
+	virtual TreeNode<ASTNodeVal>* operator()(ParserState& parserState);
 protected:
 	set<string>			m_operatorSet;
 	map<string, string>	m_operatorNames;
@@ -37,21 +37,21 @@ class PrefixParseLevelFunctor : public ParseLevelFunctor {
 public:
 	PrefixParseLevelFunctor(const set<string>& operatorSet, const map<string, string>& operatorNames, ParseLevelFunctor* nextLevel)
 		: ParseLevelFunctor(operatorSet, operatorNames, nextLevel) {}
-	virtual TreeNode<Variant>* operator()(ScopeStack& variableStack, ScopeStack& functionStack);
+	virtual TreeNode<ASTNodeVal>* operator()(ParserState& parserState);
 };
 
 class CastParseLevelFunctor : public ParseLevelFunctor {
 public:
 	CastParseLevelFunctor(ParseLevelFunctor* nextLevel)
 		: ParseLevelFunctor(nextLevel) {}
-	virtual TreeNode<Variant>* operator()(ScopeStack& variableStack, ScopeStack& functionStack);
+	virtual TreeNode<ASTNodeVal>* operator()(ParserState& parserState);
 };
 
 class ArrayRefParseLevelFunctor : public ParseLevelFunctor {
 public:
 	ArrayRefParseLevelFunctor(ParseLevelFunctor* nextLevel)
 		: ParseLevelFunctor(nextLevel){}
-	virtual TreeNode<Variant>* operator()(ScopeStack& variableStack, ScopeStack& functionStack);
+	virtual TreeNode<ASTNodeVal>* operator()(ParserState& parserState);
 };
 
 class FinalParseLevelFunctor : public ParseLevelFunctor {
@@ -61,7 +61,7 @@ public:
 
 	void SetFirstLevel(ParseLevelFunctor* firstLevel);
 
-	virtual TreeNode<Variant>* operator()(ScopeStack& variableStack, ScopeStack& functionStack);
+	virtual TreeNode<ASTNodeVal>* operator()(ParserState& parserState);
 private:
 	ParseLevelFunctor* m_firstLevel;
 };
@@ -69,7 +69,7 @@ private:
 class ExpressionParser {
 public:
 	ExpressionParser();
-	TreeNode<Variant>* operator()(ScopeStack& variableStack, ScopeStack& functionStack);
+	TreeNode<ASTNodeVal>* operator()(ParserState& parserState);
 private:
 	ParseLevelFunctor*		m_tenthLvl;
 };
@@ -79,27 +79,27 @@ void FinalParseLevelFunctor::SetFirstLevel(ParseLevelFunctor* firstLevel)
 	m_firstLevel = firstLevel;
 }
 
-TreeNode<Variant>* ParseLevelFunctor::operator()(ScopeStack& variableStack, ScopeStack& functionStack)
+TreeNode<ASTNodeVal>* ParseLevelFunctor::operator()(ParserState& parserState)
 {
-	TreeNode<Variant>* childNode = (*m_nextLevel)(variableStack, functionStack);
-	TreeNode<Variant> *rootNode = 0, *parentNode = 0;
+	TreeNode<ASTNodeVal>* childNode = (*m_nextLevel)(parserState);
+	TreeNode<ASTNodeVal> *rootNode = 0, *parentNode = 0;
 
 	for (set<string>::const_iterator op = m_operatorSet.find(lookahead());
 		op != m_operatorSet.end(); op = m_operatorSet.find(lookahead())) {
 			match(*op);
 
 			if (!rootNode) {
-				rootNode = new TreeNode<Variant>;
-				rootNode->getVal().setVal(STRING, m_operatorNames[*op]);
+				rootNode = new TreeNode<ASTNodeVal>;
+				rootNode->val.variant.setVal(Variant::STRING, m_operatorNames[*op]);
 				parentNode = rootNode;
 				rootNode->addChild(childNode);
 			} else {
-				parentNode = new TreeNode<Variant>(parentNode);
-				parentNode->getVal().setVal(STRING, m_operatorNames[*op]);
+				parentNode = new TreeNode<ASTNodeVal>(parentNode);
+				parentNode->val.variant.setVal(Variant::STRING, m_operatorNames[*op]);
 				parentNode->addChild(childNode);
 			}
 
-			childNode = (*m_nextLevel)(variableStack, functionStack);
+			childNode = (*m_nextLevel)(parserState);
 
 			cout << m_operatorNames[*op] << endl;
 	}
@@ -115,68 +115,76 @@ TreeNode<Variant>* ParseLevelFunctor::operator()(ScopeStack& variableStack, Scop
 	}
 }
 
-TreeNode<Variant>* PrefixParseLevelFunctor::operator()(ScopeStack& variableStack, ScopeStack& functionStack)
+TreeNode<ASTNodeVal>* PrefixParseLevelFunctor::operator()(ParserState& parserState)
 {
 	set<string>::const_iterator op = m_operatorSet.find(lookahead());
 
 	if (op != m_operatorSet.end()) {
 		match(*op);
 
-		TreeNode<Variant>* rootNode = new TreeNode<Variant>;
-		rootNode->getVal().setVal(STRING, m_operatorNames[*op]);
+		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
+		rootNode->val.variant.setVal(Variant::STRING, m_operatorNames[*op]);
 
 		if (*op == "sizeof" && lookahead() == "(") {
 			match("(");
-			eSpecifier spec = Specifier();
-			Pointers();
+			Type::eSpecifier spec = Specifier();
+			int indirectionLvl = Pointers();
 			match(")");
 
-			TreeNode<Variant>* node = new TreeNode<Variant>(rootNode);
-			node->getVal().setVal(STRING, GetSpecifierName(spec));
+			TreeNode<ASTNodeVal>* specNode = new TreeNode<ASTNodeVal>(rootNode);
+			specNode->val.variant.setVal(spec);
+
+			TreeNode<ASTNodeVal>* ptrNode = new TreeNode<ASTNodeVal>(rootNode);
+			ptrNode->val.variant.setVal(indirectionLvl);
 		} else {
-			rootNode->addChild((*this)(variableStack, functionStack));
+			rootNode->addChild((*this)(parserState));
 		}
 
 		cout << m_operatorNames[*op] << endl;
 
 		return rootNode;
 	} else {
-		return (*m_nextLevel)(variableStack, functionStack);
+		return (*m_nextLevel)(parserState);
 	}
 }
 
-TreeNode<Variant>* CastParseLevelFunctor::operator()(ScopeStack& variableStack, ScopeStack& functionStack)
+TreeNode<ASTNodeVal>* CastParseLevelFunctor::operator()(ParserState& parserState)
 {
-	if (lookahead() == "(" &&
-		(lookahead(1) == "int" || lookahead(1) == "long" || lookahead(1) == "char")) {
+	if (lookahead() == "(" && isSpecifier(lookahead(1))) {
 			match("(");
-			Specifier();
-			Pointers();
+			Type::eSpecifier spec = Specifier();
+			int indirectionLvl = Pointers();
 			match(")");
 
-			TreeNode<Variant>* rootNode = new TreeNode<Variant>;
-			rootNode->getVal().setVal(STRING, "CAST");
+			TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
+			rootNode->val.variant.setVal(Variant::STRING, "CAST");
 
-			rootNode->addChild((*m_nextLevel)(variableStack, functionStack));
+			TreeNode<ASTNodeVal>* specNode = new TreeNode<ASTNodeVal>(rootNode);
+			specNode->val.variant.setVal(spec);
+
+			TreeNode<ASTNodeVal>* ptrNode = new TreeNode<ASTNodeVal>(rootNode);
+			specNode->val.variant.setVal(indirectionLvl);
+
+			rootNode->addChild((*m_nextLevel)(parserState));
 			cout << "cast" << endl;
 
 			return rootNode;
 	} else {
-		return (*m_nextLevel)(variableStack, functionStack);
+		return (*m_nextLevel)(parserState);
 	}
 }
 
-TreeNode<Variant>* ArrayRefParseLevelFunctor::operator()(ScopeStack& variableStack, ScopeStack& functionStack)
+TreeNode<ASTNodeVal>* ArrayRefParseLevelFunctor::operator()(ParserState& parserState)
 {
-	TreeNode<Variant>* rootNode = (*m_nextLevel)(variableStack, functionStack);
-	TreeNode<Variant>* parentNode = rootNode;
+	TreeNode<ASTNodeVal>* rootNode = (*m_nextLevel)(parserState);
+	TreeNode<ASTNodeVal>* parentNode = rootNode;
 
 	while (lookahead() == "[") {
 		match("[");
 
-		TreeNode<Variant>* childNode = new TreeNode<Variant>(parentNode);
-		childNode->getVal().setVal(STRING, "index");
-		childNode->addChild(Expression(variableStack, functionStack));
+		TreeNode<ASTNodeVal>* childNode = new TreeNode<ASTNodeVal>(parentNode);
+		childNode->val.variant.setVal(Variant::STRING, "INDEX");
+		childNode->addChild(Expression(parserState));
 		cout << "index" << endl;
 		match("]");
 	}
@@ -184,36 +192,38 @@ TreeNode<Variant>* ArrayRefParseLevelFunctor::operator()(ScopeStack& variableSta
 	return rootNode;
 }
 
-TreeNode<Variant>* FinalParseLevelFunctor::operator()(ScopeStack& variableStack, ScopeStack& functionStack)
+TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserState)
 {
 	string currToken = lookahead();
 
 	if (currToken == "IDENTIFIER") {
 		Variant v;
 		unsigned int lineNumber;
-		match("IDENTIFIER", &v, &lineNumber);
+		match("IDENTIFIER", &v, &lineNumber);		
 
-		
-
-		TreeNode<Variant>* rootNode = new TreeNode<Variant>;
-		rootNode->getVal() = v;
+		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
 
 		if (lookahead() == "(") {
 			match("(");
 
-			TreeNode<Variant>* funcCallNode = new TreeNode<Variant>;
-			funcCallNode->getVal().setVal(STRING, "function_call");
-			funcCallNode->addChild(rootNode);
+			SymbolTableRef sym;
 
-			// use of an undefined variable
-			if (!LookupSymbol(functionStack, v.getStrVal())) {
+			// calling an undefined function
+			if (!LookupSymbol(parserState.functionStack, v.getStrVal(), &sym)) {
 				outputError(lineNumber, "'" + v.getStrVal() + "' undeclared");
 			}
 
-			if (lookahead() != ")") {
-				list<TreeNode<Variant>*> nodes = ExpressionList(variableStack, functionStack);
+			rootNode->val.symbol = sym;
+			rootNode->val.isSymbol = true;
 
-				for (list<TreeNode<Variant>*>::const_iterator i = nodes.begin(), i_end = nodes.end();
+			TreeNode<ASTNodeVal>* funcCallNode = new TreeNode<ASTNodeVal>;
+			funcCallNode->val.variant.setVal(Variant::STRING, "FUNC_CALL");
+			funcCallNode->addChild(rootNode);
+
+			if (lookahead() != ")") {
+				list<TreeNode<ASTNodeVal>*> nodes = ExpressionList(parserState);
+
+				for (list<TreeNode<ASTNodeVal>*>::const_iterator i = nodes.begin(), i_end = nodes.end();
 					i != i_end; ++i) {
 						funcCallNode->addChild(*i);
 				}
@@ -222,23 +232,28 @@ TreeNode<Variant>* FinalParseLevelFunctor::operator()(ScopeStack& variableStack,
 			match(")");
 			return funcCallNode;
 		} else {
+			SymbolTableRef sym;
+
 			// use of an undefined variable
-			if (!LookupSymbol(variableStack, v.getStrVal())) {
+			if (!LookupSymbol(parserState.variableStack, v.getStrVal(), &sym)) {
 				outputError(lineNumber, "'" + v.getStrVal() + "' undeclared");
 			}
-		}
 
-		return rootNode;
+			rootNode->val.symbol = sym;
+			rootNode->val.isSymbol = true;
+
+			return rootNode;
+		}
 	} else if (currToken == "INTEGER" || currToken == "LONGINTEGER" || currToken == "STRING" || currToken == "CHARACTER") {
 		Variant v;
 		match(currToken, &v);
 
-		TreeNode<Variant>* rootNode = new TreeNode<Variant>;
-		rootNode->getVal() = v;
+		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
+		rootNode->val.variant = v;
 		return rootNode;
 	} else {
 		match("(");
-		return (*m_firstLevel)(variableStack, functionStack);
+		return (*m_firstLevel)(parserState);
 		match(")");
 	}
 }
@@ -326,15 +341,15 @@ ExpressionParser::ExpressionParser()
 	firstLevel->SetFirstLevel(m_tenthLvl);
 }
 
-TreeNode<Variant>* ExpressionParser::operator()(ScopeStack& variableStack, ScopeStack& functionStack)
+TreeNode<ASTNodeVal>* ExpressionParser::operator()(ParserState& parserState)
 {
-	return (*m_tenthLvl)(variableStack, functionStack);
+	return (*m_tenthLvl)(parserState);
 }
 
-TreeNode<Variant>* Expression(ScopeStack& variableStack, ScopeStack& functionStack)
+TreeNode<ASTNodeVal>* Expression(ParserState& parserState)
 {
 	static ExpressionParser expr;
-	return expr(variableStack, functionStack);
+	return expr(parserState);
 }
 
 /*

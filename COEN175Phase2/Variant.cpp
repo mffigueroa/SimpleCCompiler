@@ -7,24 +7,52 @@ Variant::Variant()
 	: m_type(UNDEFINED)
 {}
 
-Variant::Variant(eSpecifier spec, const string& strVal)
+Variant::Variant(VariantType type, const string& strVal)
 {
-	setVal(spec, strVal);
+	setVal(type, strVal);
 }
 
-void Variant::setVal(eSpecifier spec, const std::string& strVal)
+void Variant::setVal(Type::eSpecifier spec)
 {
-	m_type = spec;
+	m_type = SPECIFIER;
+	m_specVal = spec;
+}
 
-	if (spec == STRING || spec == IDENTIFIER) {
+void Variant::setVal(int i)
+{
+	m_type = INT;
+	m_intVal = i;
+}
+
+void Variant::setVal(char c)
+{
+	m_type = CHAR;
+	m_charVal = c;
+}
+
+void Variant::setVal(VariantType type, const std::string& strVal)
+{
+	m_type = type;
+
+	if (type == STRING || type == IDENTIFIER) {
 		m_strVal = strVal;
-	} else if (spec == INT || spec == LONGINT) {
+	} else if (type == INT || type == LONGINT) {
 		m_intVal = 0;
 
 		for (size_t i = 0; i < strVal.length() && strVal[i] != 'L'; ++i) {
 			m_intVal = (int)(strVal[i] - '0') + m_intVal * 10;
 		}
-	} else if (spec == CHAR) {
+	} else if (type == SPECIFIER) {
+		if (strVal == "INT") {
+			m_specVal = Type::INT;
+		} else if (strVal == "LONGINT") {
+			m_specVal = Type::LONGINT;
+		} else if (strVal == "CHAR") {
+			m_specVal = Type::CHAR;
+		} else if (strVal == "STRING") {
+			m_specVal = Type::STRING;
+		}
+	} else if (type == CHAR) {
 		if (strVal[0] == '\\') {
 			char escaped = strVal[1];
 			if (escaped == 'a') {
@@ -89,7 +117,7 @@ void Variant::operator=(const Variant& v)
 	}
 }
 
-eSpecifier Variant::getType() const
+Variant::VariantType Variant::getType() const
 {
 	return m_type;
 }

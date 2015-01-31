@@ -4,15 +4,16 @@
 #include <map>
 #include <string>
 
+#include "Header.h"
 #include "Variant.h"
 #include "Tree.h"
 
 using namespace std;
 
 string printVariant(const Variant& v);
-string outputNodeDotNotation(TreeNode<Variant>* node, map<string, int>& idUsage, ofstream& fp, int nodeLevel = 1);
+string outputNodeDotNotation(TreeNode<ASTNodeVal>* node, map<string, int>& idUsage, ofstream& fp, int nodeLevel = 1);
 
-void outputDotFile(TreeNode<Variant>* root, const std::string& filename)
+void outputDotFile(TreeNode<ASTNodeVal>* root, const std::string& filename)
 {
 	ofstream fp(filename, ios::out);
 
@@ -43,28 +44,28 @@ string GetNodeName(const string& nodeName, map<string, int>& idUsage)
 	return newNodeName;
 }
 
-string outputNodeDotNotation(TreeNode<Variant>* node, map<string, int>& idUsage, ofstream& fp, int nodeLevel)
+string outputNodeDotNotation(TreeNode<ASTNodeVal>* node, map<string, int>& idUsage, ofstream& fp, int nodeLevel)
 {
 	for (int i = 0; i < nodeLevel; ++i) {
 		fp << "\t";
 	}
 
-	string parentNodeLbl = printVariant(node->getVal());
+	string parentNodeLbl = printVariant(node->val.variant);
 	string parentNode = GetNodeName(parentNodeLbl, idUsage);
 
 	fp << parentNode << " [label = " << parentNodeLbl << "];" << endl;
 
-	const list<TreeNode<Variant>*>& children = node->getChildList();
+	const list<TreeNode<ASTNodeVal>*>& children = node->getChildList();
 
 	vector<string> childNodes;
 
-	for (list<TreeNode<Variant>*>::const_iterator i = children.begin(), i_end = children.end();
+	for (list<TreeNode<ASTNodeVal>*>::const_iterator i = children.begin(), i_end = children.end();
 		i != i_end; ++i) {
 		childNodes.push_back(outputNodeDotNotation(*i, idUsage, fp, nodeLevel + 1));
 	}
 
 	vector<string>::const_iterator childNodeIt = childNodes.begin();
-	for (list<TreeNode<Variant>*>::const_iterator i = children.begin(), i_end = children.end();
+	for (list<TreeNode<ASTNodeVal>*>::const_iterator i = children.begin(), i_end = children.end();
 		i != i_end; ++i, ++childNodeIt) {
 			for (int j = 0; j < nodeLevel; ++j) {
 				fp << "\t";
@@ -77,15 +78,20 @@ string outputNodeDotNotation(TreeNode<Variant>* node, map<string, int>& idUsage,
 
 string printVariant(const Variant& v)
 {
-	if (v.getType() == STRING || v.getType() == IDENTIFIER) {
+	if (v.getType() == Variant::STRING || v.getType() == Variant::IDENTIFIER) {
 		return v.getStrVal();
-	} else if (v.getType() == CHAR) {
+	} else if (v.getType() == Variant::CHAR) {
 		return string(v.getCharVal(), 1);
-	} else if (v.getType() == INT || v.getType() == LONGINT) {
+	} else if (v.getType() == Variant::INT || v.getType() == Variant::LONGINT) {
 		char buf[256];
 		_itoa_s(v.getIntVal(), buf, 256, 10);
 		return "int_" + string(buf);
 	} else {
 		return "Undefined Variant";
 	}
+}
+
+void printSymbol(const Symbol& s, string& id, string& label)
+{
+	;
 }

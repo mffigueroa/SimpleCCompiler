@@ -3,19 +3,18 @@
 
 #include <vector>
 
-enum eSpecifier {
-	INT,
-	LONGINT,
-	CHAR,
-	STRING,
-	IDENTIFIER,
-	UNDEFINED
-};
-
 class Symbol;
 
 class Type {
 public:
+	typedef enum {
+		INT = 1,
+		LONGINT,
+		CHAR,
+		STRING,
+		UNDEFINED
+	} eSpecifier;
+
 	Type()
 		: spec(INT), lvlsOfIndirection(0)
 	{}
