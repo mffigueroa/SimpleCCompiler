@@ -32,6 +32,8 @@ bool isSpecifier(const std::string& str);
 bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, SymbolTableRef* r_symbol = 0);
 void outputError(unsigned int lineNumber, const std::string& err);
 void outputDotFile(TreeNode<ASTNodeVal>* v, const std::string& filename);
+void addChildrenToNode(TreeNode<ASTNodeVal>* v, const std::list<TreeNode<ASTNodeVal>*>& children);
+bool cmpFuncWithoutParams(const Symbol& lhs, const Symbol& rhs);
 std::string GetSpecifierName(Type::eSpecifier spec);
 
 TreeNode<ASTNodeVal>* TranslationUnit();

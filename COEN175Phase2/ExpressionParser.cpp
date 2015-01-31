@@ -221,12 +221,7 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 			funcCallNode->addChild(rootNode);
 
 			if (lookahead() != ")") {
-				list<TreeNode<ASTNodeVal>*> nodes = ExpressionList(parserState);
-
-				for (list<TreeNode<ASTNodeVal>*>::const_iterator i = nodes.begin(), i_end = nodes.end();
-					i != i_end; ++i) {
-						funcCallNode->addChild(*i);
-				}
+				addChildrenToNode(funcCallNode, ExpressionList(parserState));
 			}
 
 			match(")");
@@ -253,8 +248,9 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 		return rootNode;
 	} else {
 		match("(");
-		return (*m_firstLevel)(parserState);
+		TreeNode<ASTNodeVal>* node = (*m_firstLevel)(parserState);
 		match(")");
+		return node;
 	}
 }
 

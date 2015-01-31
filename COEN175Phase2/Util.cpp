@@ -98,6 +98,15 @@ bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, Symbol
 	return false;
 }
 
+void addChildrenToNode(TreeNode<ASTNodeVal>* v, const list<TreeNode<ASTNodeVal>*>& children)
+{
+	list<TreeNode<ASTNodeVal>*>::const_iterator it = children.begin(), it_end = children.end();
+
+	for (; it != it_end; ++it) {
+		v->addChild(*it);
+	}
+}
+
 void outputError(unsigned int lineNumber, const std::string& err)
 {
 	cerr << "line " << lineNumber << ": " << err << endl;
@@ -106,4 +115,13 @@ void outputError(unsigned int lineNumber, const std::string& err)
 bool isSpecifier(const std::string& str)
 {
 	return str == "int" || str == "long" || str == "char";
+}
+
+bool cmpFuncWithoutParams(const Symbol& lhs, const Symbol& rhs)
+{
+	return	lhs.identifier == rhs.identifier &&
+		lhs.type.spec == rhs.type.spec &&
+		lhs.type.arraySize == rhs.type.arraySize &&
+		lhs.type.isFunction == rhs.type.isFunction &&
+		lhs.type.lvlsOfIndirection == rhs.type.lvlsOfIndirection;
 }

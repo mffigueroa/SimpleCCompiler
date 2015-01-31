@@ -54,12 +54,12 @@ TreeNode<ASTNodeVal>* TranslationUnit()
 
 		if (lookahead(lastPointerToken + 1) == "(") {
 			if (lookahead(lastPointerToken + 2) == ")") {
-				astRootNode->addChild(GlobalDeclaration(parserState));
+				addChildrenToNode(astRootNode, Declaration(parserState, true));
 			} else {
 				astRootNode->addChild(FunctionDefinition(parserState));
 			}
 		} else {
-			astRootNode->addChild(GlobalDeclaration(parserState));
+			addChildrenToNode(astRootNode, Declaration(parserState, true));
 		}
 	}
 
@@ -67,66 +67,6 @@ TreeNode<ASTNodeVal>* TranslationUnit()
 	parserState.functionStack.pop_back();
 
 	return astRootNode;
-}
-
-TreeNode<ASTNodeVal>* GlobalDeclaration(ParserState& parserState)
-{
-	TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
-	Type::eSpecifier spec = Specifier();
-
-	rootNode->val.variant.setVal(Variant::STRING, "DECL");
-	rootNode->addChild(GlobalDeclarator(parserState, spec));
-
-	while (lookahead() == ",") {
-		match(",");
-		rootNode->addChild(GlobalDeclarator(parserState, spec));
-	}
-
-	match(";");
-	return rootNode;
-}
-
-TreeNode<ASTNodeVal>* GlobalDeclarator(ParserState& parserState, Type::eSpecifier spec)
-{
-	Symbol s;
-	s.type.lvlsOfIndirection = Pointers();
-
-	Variant ident;
-	unsigned int lineNumber;
-	match("IDENTIFIER", &ident, &lineNumber);
-
-	s.identifier = ident.getStrVal();
-	s.type.spec = spec;
-	s.type.isFunction = false;
-	s.type.arraySize = 0;
-
-	if (lookahead() == "[")	{
-		match("[");
-		s.type.arraySize = Number();
-		match("]");
-	} else if (lookahead() == "(")	{
-		match("(");
-		match(")");
-
-		s.type.isFunction = true;
-	}
-
-	// if the variable has been declared already, make sure
-	// its of the same type. if not, declare it in the scope.
-	SymbolTableRef symbolLookup;
-	if (LookupSymbol(parserState.variableStack, s.identifier, &symbolLookup)) {
-		if (s != symbolLookup->second) {
-			outputError(lineNumber, "conflicting types for '" + s.identifier + "'");
-		}
-	} else {
-		SymbolTableRef it = parserState.symbolTable.insert(pair<string, Symbol>(s.identifier, s));
-		parserState.variableStack.back()[s.identifier] = it;
-	}
-
-	TreeNode<ASTNodeVal>* node = new TreeNode<ASTNodeVal>;
-	node->val.variant.setVal(Variant::STRING, ident.getStrVal());
-
-	return node;
 }
 
 TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
@@ -142,6 +82,7 @@ TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
 	s.type.spec = Specifier();
 	s.type.lvlsOfIndirection = Pointers();
 	s.type.isFunction = true;
+	s.defined = true;
 
 	Variant v;
 	unsigned int lineNumber;
@@ -156,7 +97,17 @@ TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
 	// otherwise define it in the scope.
 	SymbolTableRef sym;
 	if (LookupSymbol(parserState.functionStack, s.identifier, &sym)) {
-		outputError(lineNumber, "redefinition of '" + s.identifier + "'");
+		if (sym->second.defined) {
+			outputError(lineNumber, "redefinition of '" + s.identifier + "'");
+		} else if (!cmpFuncWithoutParams(s, sym->second)) {
+			// don't compare the declaration's function parameters with this
+			// definition
+			outputError(lineNumber, "conflicting types for '" + s.identifier + "'");
+		} else {
+			// this is the first definition of the function,
+			// so we've already seen its declaration
+			sym->second.defined = true;
+		}
 	} else {
 		sym = parserState.symbolTable.insert(pair<string, Symbol>(s.identifier, s));
 		ScopeStack::reverse_iterator i = ++parserState.functionStack.rbegin();
@@ -240,12 +191,7 @@ TreeNode<ASTNodeVal>* Declarations(ParserState& parserState)
 	rootNode->val.variant.setVal(Variant::STRING, "DECLS");
 
 	for (string currToken = lookahead(); isSpecifier(currToken); currToken = lookahead()) {
-			list<TreeNode<ASTNodeVal>*> nodes = Declaration(parserState);
-			
-			for (list<TreeNode<ASTNodeVal>*>::const_iterator it = nodes.begin(), it_end = nodes.end();
-				it != it_end; ++it) {
-					rootNode->addChild(*it);
-			}
+		addChildrenToNode(rootNode, Declaration(parserState));
 	}
 
 	return rootNode;
@@ -294,7 +240,14 @@ TreeNode<ASTNodeVal>* Declarator(ParserState& parserState, Type::eSpecifier spec
 		s.type.isFunction = true;
 	}
 
-	ScopeStack::reverse_iterator currScope = parserState.variableStack.rbegin();
+	ScopeStack::reverse_iterator currScope;
+	
+	if (s.type.isFunction) {
+		currScope = parserState.functionStack.rbegin();
+	} else {
+		currScope = parserState.variableStack.rbegin();
+	}
+
 	Scope::const_iterator it = currScope->find(s.identifier);
 
 	SymbolTableRef newSym;

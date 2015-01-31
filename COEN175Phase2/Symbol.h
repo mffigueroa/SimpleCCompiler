@@ -8,9 +8,10 @@
 class Symbol
 {
 public:
-	Symbol(){}
+	Symbol() : defined(false) {}
 	std::string identifier;
 	Type		type;
+	bool		defined;
 
 	bool operator==(const Symbol& rhs);
 	bool operator!=(const Symbol& rhs);
