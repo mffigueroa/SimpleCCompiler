@@ -53,8 +53,8 @@ void Variant::setVal(VariantType type, const std::string& strVal)
 			m_specVal = Type::STRING;
 		}
 	} else if (type == CHAR) {
-		if (strVal[0] == '\\') {
-			char escaped = strVal[1];
+		if (strVal[1] == '\\') {
+			char escaped = strVal[2];
 			if (escaped == 'a') {
 				m_charVal = '\a';
 			} else if (escaped == 'b') {
@@ -80,7 +80,7 @@ void Variant::setVal(VariantType type, const std::string& strVal)
 			} else if (escaped == 'n') {
 				m_charVal = 0;
 
-				for (int i = 2; i < 4; ++i) {
+				for (int i = 3; i < 5; ++i) {
 					char c = strVal[i];
 					if ('0' <= c && c <= '7') {
 						m_charVal = (c - '0') + m_charVal * 8;
@@ -89,7 +89,7 @@ void Variant::setVal(VariantType type, const std::string& strVal)
 			} else if (escaped == 'x') {
 				m_charVal = 0;
 
-				for (int i = 2; i < 4; ++i) {
+				for (int i = 3; i < 5; ++i) {
 					char c = strVal[i];
 					if ('0' <= c && c <= '9') {
 						m_charVal = (c - '0') + m_charVal * 16;
@@ -100,6 +100,8 @@ void Variant::setVal(VariantType type, const std::string& strVal)
 					}
 				}
 			}
+		} else {
+			m_charVal = strVal[1];
 		}
 	}
 }
@@ -135,4 +137,9 @@ int Variant::getIntVal() const
 char Variant::getCharVal() const
 {
 	return m_charVal;
+}
+
+Type::eSpecifier Variant::getSpecifierVal() const
+{
+	return m_specVal;
 }

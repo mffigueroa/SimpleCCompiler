@@ -15,6 +15,18 @@ public:
 		}
 	}
 
+	~TreeNode()
+	{
+		std::list<TreeNode<typename T>*>::iterator it =	m_children.begin(), it_end = m_children.end();
+
+		for (; it != it_end; ++it) {
+			if (*it) {
+				delete *it;
+				*it = 0;
+			}
+		}
+	}
+
 	void setParent(TreeNode<T>* parent)
 	{
 		m_parent = parent;

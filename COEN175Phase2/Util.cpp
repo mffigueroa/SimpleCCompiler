@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <deque>
 #include <string>
 
@@ -67,21 +69,6 @@ string lookahead(unsigned int ahead)
 	return reverseTokenMap[it->first];
 }
 
-string GetSpecifierName(Type::eSpecifier spec)
-{	
-	if(spec == Type::INT) {
-		return "INT"; 
-	} else if (spec == Type::LONGINT) {
-		return "LONGINT";
-	} else if (spec == Type::CHAR) {
-		return "CHAR";
-	} else if (spec == Type::STRING) {
-		return "STRING";
-	} else {
-		return "UNDEFINED";
-	}
-}
-
 bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, SymbolTableRef* r_symbol)
 {
 	for (ScopeStack::const_iterator i = stack.begin(); i != stack.end(); ++i) {
@@ -98,13 +85,40 @@ bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, Symbol
 	return false;
 }
 
-void addChildrenToNode(TreeNode<ASTNodeVal>* v, const list<TreeNode<ASTNodeVal>*>& children)
+void SkipErrorUntil(const string& synchronizeToken)
 {
+	for (string la = lookahead(); la != synchronizeToken; la = lookahead()) {
+		match(la);
+	}
+}
+
+void FreeNodeList(list<TreeNode<ASTNodeVal>*>& children)
+{
+	list<TreeNode<ASTNodeVal>*>::iterator it = children.begin(), it_end = children.end();
+
+	for (; it != it_end; ++it) {
+		if (*it) {
+			delete *it;
+			*it = 0;
+		}
+	}
+
+	children.clear();
+}
+
+bool addChildrenToNode(TreeNode<ASTNodeVal>* v, const list<TreeNode<ASTNodeVal>*>& children)
+{
+	if (children.empty()) {
+		return false;
+	}
+
 	list<TreeNode<ASTNodeVal>*>::const_iterator it = children.begin(), it_end = children.end();
 
 	for (; it != it_end; ++it) {
 		v->addChild(*it);
 	}
+
+	return true;
 }
 
 void outputError(unsigned int lineNumber, const std::string& err)
@@ -124,4 +138,16 @@ bool cmpFuncWithoutParams(const Symbol& lhs, const Symbol& rhs)
 		lhs.type.arraySize == rhs.type.arraySize &&
 		lhs.type.isFunction == rhs.type.isFunction &&
 		lhs.type.lvlsOfIndirection == rhs.type.lvlsOfIndirection;
+}
+
+std::string intToStr(int i)
+{
+	char buf[256];
+#ifdef _WIN32
+	sprintf_s(buf, "%d", i);
+#else
+	snprintf(buf, 256, "%d", i);
+#endif
+
+	return string(buf);
 }

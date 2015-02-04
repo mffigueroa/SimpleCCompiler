@@ -33,13 +33,13 @@ size_t Pointers()
 	return indirectionLvls;
 }
 
-TreeNode<ASTNodeVal>* TranslationUnit()
+void TranslationUnit(TreeNode<ASTNodeVal>** r_astRootNode, ParserState** r_parserState)
 {
-	TreeNode<ASTNodeVal>*	astRootNode = new TreeNode<ASTNodeVal>;
-	ParserState				parserState;
+	TreeNode<ASTNodeVal>	*astRootNode = new TreeNode<ASTNodeVal>;
+	ParserState				*parserState = new ParserState;
 
-	parserState.variableStack.push_back(Scope());
-	parserState.functionStack.push_back(Scope());
+	parserState->variableStack.push_back(Scope());
+	parserState->functionStack.push_back(Scope());
 
 	astRootNode->val.variant.setVal(Variant::STRING, "TranslationUnit");
 
@@ -54,19 +54,20 @@ TreeNode<ASTNodeVal>* TranslationUnit()
 
 		if (lookahead(lastPointerToken + 1) == "(") {
 			if (lookahead(lastPointerToken + 2) == ")") {
-				addChildrenToNode(astRootNode, Declaration(parserState, true));
+				addChildrenToNode(astRootNode, Declaration(*parserState, true));
 			} else {
-				astRootNode->addChild(FunctionDefinition(parserState));
+				astRootNode->addChild(FunctionDefinition(*parserState));
 			}
 		} else {
-			addChildrenToNode(astRootNode, Declaration(parserState, true));
+			addChildrenToNode(astRootNode, Declaration(*parserState, true));
 		}
 	}
 
-	parserState.variableStack.pop_back();
-	parserState.functionStack.pop_back();
+	parserState->variableStack.pop_back();
+	parserState->functionStack.pop_back();
 
-	return astRootNode;
+	*r_astRootNode = astRootNode;
+	*r_parserState = parserState;
 }
 
 TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
@@ -108,6 +109,12 @@ TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
 			// so we've already seen its declaration
 			sym->second.defined = true;
 		}
+
+		// an erroneous function definition always replaces the existing
+		// definition, and in the case where this is just the first
+		// function's definition we still have to update it to include
+		// our function parameters.
+		sym->second = s;
 	} else {
 		sym = parserState.symbolTable.insert(pair<string, Symbol>(s.identifier, s));
 		ScopeStack::reverse_iterator i = ++parserState.functionStack.rbegin();
@@ -118,6 +125,9 @@ TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
 	rootNode->val.isSymbol = true;
 
 	match("{");
+	// ignore the output of these functions.
+	// if they return NULL then they just won't be added
+	// to the tree.
 	rootNode->addChild(Declarations(parserState));
 	rootNode->addChild(Statements(parserState));
 	match("}");
@@ -139,15 +149,28 @@ TreeNode<ASTNodeVal>* Parameters(ParserState& parserState, vector<Symbol*>& func
 		rootNode->val.variant.setVal(Variant::STRING, "Parameters");
 
 		Symbol* a = new Symbol;
-		rootNode->addChild(Parameter(parserState, *a));
-		funcParams.push_back(a);
+
+		TreeNode<ASTNodeVal>* paramNode = Parameter(parserState, *a);
+
+		if (paramNode) {
+			rootNode->addChild(paramNode);
+			funcParams.push_back(a);
+		} else {
+			delete a;
+		}
 
 		while (lookahead() == ",") {
 			match(",");
 
 			a = new Symbol;
-			rootNode->addChild(Parameter(parserState, *a));
-			funcParams.push_back(a);
+			paramNode = Parameter(parserState, *a);
+
+			if (paramNode) {
+				rootNode->addChild(paramNode);
+				funcParams.push_back(a);
+			} else {
+				delete a;
+			}
 		}
 
 		return rootNode;
@@ -173,6 +196,7 @@ TreeNode<ASTNodeVal>* Parameter(ParserState& parserState, Symbol& s)
 	// If so, error, otherwise define it.
 	if (it != currScope->end()) {
 		outputError(lineNumber, "redeclaration of '" + s.identifier + "'");
+		return NULL;
 	} else {
 		sym = parserState.symbolTable.insert(pair<string, Symbol>(s.identifier, s));
 		(*currScope)[s.identifier] = sym;
@@ -203,12 +227,20 @@ list<TreeNode<ASTNodeVal>*> Declaration(ParserState& parserState, bool global)
 
 	Type::eSpecifier spec = Specifier();
 
-	decls.push_back(Declarator(parserState, spec, global));
+	TreeNode<ASTNodeVal>* declNode = Declarator(parserState, spec, global);
+
+	if (declNode) {
+		decls.push_back(declNode);
+	}
 
 	while (lookahead() == ",") {
 		match(",");
 
-		decls.push_back(Declarator(parserState, spec, global));
+		declNode = Declarator(parserState, spec, global);
+
+		if (declNode) {
+			decls.push_back(declNode);
+		}
 	}
 
 	match(";");
@@ -259,8 +291,10 @@ TreeNode<ASTNodeVal>* Declarator(ParserState& parserState, Type::eSpecifier spec
 
 		if (global && s != newSym->second) {
 			outputError(lineNumber, "conflicting types for '" + s.identifier + "'");
+			return NULL;
 		} else {
 			outputError(lineNumber, "redeclaration of '" + s.identifier + "'");
+			return NULL;
 		}
 	} else {
 		newSym = parserState.symbolTable.insert(pair<string, Symbol>(s.identifier, s));
@@ -281,6 +315,9 @@ TreeNode<ASTNodeVal>* Statements(ParserState& parserState)
 
 	while (lookahead() != "}")
 	{
+		// ignore if Statement returns NULL or not.
+		// equivalent to just skipping over invalid
+		// statements.
 		rootNode->addChild(Statement(parserState));
 	}
 
@@ -300,8 +337,29 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 
 		astRootNode->val.variant.setVal(Variant::STRING, "BLOCK");
 
-		astRootNode->addChild(Declarations(parserState));
-		astRootNode->addChild(Statements(parserState));
+		TreeNode<ASTNodeVal>* declNode = Declarations(parserState);
+
+		if (!declNode) {
+			SkipErrorUntil("}");
+			match("}");
+			parserState.variableStack.pop_back();
+			delete astRootNode;
+			return NULL;
+		}
+
+		astRootNode->addChild(declNode);
+
+		TreeNode<ASTNodeVal>* stmtsNode = Statements(parserState);
+
+		if (!stmtsNode) {
+			SkipErrorUntil("}");
+			match("}");
+			parserState.variableStack.pop_back();
+			delete astRootNode;
+			return NULL;
+		}
+
+		astRootNode->addChild(stmtsNode);
 
 		parserState.variableStack.pop_back();
 
@@ -311,24 +369,55 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 
 		astRootNode->val.variant.setVal(Variant::STRING, "RETURN");
 
-		astRootNode->addChild(Expression(parserState));
-		match(";");
+		TreeNode<ASTNodeVal>* expNode = Expression(parserState);
+
+		if (!expNode) {
+			SkipErrorUntil(";");
+			match(";");
+			delete astRootNode;
+			return NULL;
+		} else {
+			astRootNode->addChild(expNode);
+			match(";");
+		}
 	} else if (currToken == "while") {
 		match("while");
 		match("(");
 
 		astRootNode->val.variant.setVal(Variant::STRING, "WHILE");
 
-		astRootNode->addChild(Expression(parserState));
+		TreeNode<ASTNodeVal>* conditionNode = Expression(parserState);
+
+		if (!conditionNode) {
+			SkipErrorUntil(")");
+		} else {
+			astRootNode->addChild(conditionNode);
+		}
+
 		match(")");
-		astRootNode->addChild(Statement(parserState));
+
+		TreeNode<ASTNodeVal>* stmtNode = Statement(parserState);
+
+		if (stmtNode) {
+			astRootNode->addChild(stmtNode);
+		} else {
+			delete astRootNode;
+			return NULL;
+		}
 	} else if (currToken == "if") {
 		match("if");
 		match("(");
 
 		astRootNode->val.variant.setVal(Variant::STRING, "IF");
 
-		astRootNode->addChild(Expression(parserState));
+		TreeNode<ASTNodeVal>* conditionNode = Expression(parserState);
+
+		if (!conditionNode) {
+			SkipErrorUntil(")");
+		} else {
+			astRootNode->addChild(conditionNode);
+		}
+
 		match(")");
 
 		astRootNode->addChild(Statement(parserState));
@@ -343,12 +432,27 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 	} else {
 		TreeNode<ASTNodeVal>* astExpNode = Expression(parserState);
 
+		if (!astExpNode) {
+			SkipErrorUntil(";");
+			match(";");
+			return NULL;
+		}
+
 		if (lookahead() == "=") {
 			match("=");
 
 			astRootNode->val.variant.setVal(Variant::STRING, "ASSIGN");
 			astRootNode->addChild(astExpNode);
-			astRootNode->addChild(Expression(parserState));
+
+			TreeNode<ASTNodeVal>* valNode = Expression(parserState);
+
+			if (!valNode) {
+				SkipErrorUntil(";");
+				match(";");
+				return NULL;
+			}
+
+			astRootNode->addChild(valNode);
 			match(";");
 		} else {
 			match(";");
@@ -362,11 +466,26 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 list<TreeNode<ASTNodeVal>*> ExpressionList(ParserState& parserState)
 {
 	list<TreeNode<ASTNodeVal>*> nodes;
-	nodes.push_back(Expression(parserState));
+
+	TreeNode<ASTNodeVal>* expNode = Expression(parserState);
+
+	if (!expNode) {
+		return nodes;
+	}
+
+	nodes.push_back(expNode);
 
 	while (lookahead() == ",") {
 		match(",");
-		nodes.push_back(Expression(parserState));
+
+		expNode = Expression(parserState);
+
+		if (!expNode) {
+			FreeNodeList(nodes);
+			return nodes;
+		}
+
+		nodes.push_back(expNode);
 	}
 
 	return nodes;

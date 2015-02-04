@@ -8,6 +8,8 @@ using namespace std;
 #include "Header.h"
 #include "Tree.h"
 
+vector<string>	operatorNames;
+
 class ParseLevelFunctor {
 public:
 	ParseLevelFunctor(const set<string>& operatorSet, const map<string, string>& operatorNames, ParseLevelFunctor* nextLevel)
@@ -82,6 +84,11 @@ void FinalParseLevelFunctor::SetFirstLevel(ParseLevelFunctor* firstLevel)
 TreeNode<ASTNodeVal>* ParseLevelFunctor::operator()(ParserState& parserState)
 {
 	TreeNode<ASTNodeVal>* childNode = (*m_nextLevel)(parserState);
+
+	if (!childNode) {
+		return NULL;
+	}
+
 	TreeNode<ASTNodeVal> *rootNode = 0, *parentNode = 0;
 
 	for (set<string>::const_iterator op = m_operatorSet.find(lookahead());
@@ -100,6 +107,14 @@ TreeNode<ASTNodeVal>* ParseLevelFunctor::operator()(ParserState& parserState)
 			}
 
 			childNode = (*m_nextLevel)(parserState);
+
+			if (!childNode) {
+				if (rootNode) {
+					delete rootNode;
+				}
+
+				return NULL;
+			}
 
 			cout << m_operatorNames[*op] << endl;
 	}
@@ -125,7 +140,7 @@ TreeNode<ASTNodeVal>* PrefixParseLevelFunctor::operator()(ParserState& parserSta
 		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
 		rootNode->val.variant.setVal(Variant::STRING, m_operatorNames[*op]);
 
-		if (*op == "sizeof" && lookahead() == "(") {
+		if (*op == "sizeof" && lookahead() == "(" && isSpecifier(lookahead(1))) {
 			match("(");
 			Type::eSpecifier spec = Specifier();
 			int indirectionLvl = Pointers();
@@ -137,7 +152,13 @@ TreeNode<ASTNodeVal>* PrefixParseLevelFunctor::operator()(ParserState& parserSta
 			TreeNode<ASTNodeVal>* ptrNode = new TreeNode<ASTNodeVal>(rootNode);
 			ptrNode->val.variant.setVal(indirectionLvl);
 		} else {
-			rootNode->addChild((*this)(parserState));
+			TreeNode<ASTNodeVal>* child = (*this)(parserState);
+
+			if (!child) {
+				return NULL;
+			}
+
+			rootNode->addChild(child);
 		}
 
 		cout << m_operatorNames[*op] << endl;
@@ -163,9 +184,16 @@ TreeNode<ASTNodeVal>* CastParseLevelFunctor::operator()(ParserState& parserState
 			specNode->val.variant.setVal(spec);
 
 			TreeNode<ASTNodeVal>* ptrNode = new TreeNode<ASTNodeVal>(rootNode);
-			specNode->val.variant.setVal(indirectionLvl);
+			ptrNode->val.variant.setVal(indirectionLvl);
 
-			rootNode->addChild((*m_nextLevel)(parserState));
+			TreeNode<ASTNodeVal>* child = (*this)(parserState);
+
+			if (!child) {
+				return NULL;
+				delete rootNode;
+			}
+
+			rootNode->addChild(child);
 			cout << "cast" << endl;
 
 			return rootNode;
@@ -177,6 +205,11 @@ TreeNode<ASTNodeVal>* CastParseLevelFunctor::operator()(ParserState& parserState
 TreeNode<ASTNodeVal>* ArrayRefParseLevelFunctor::operator()(ParserState& parserState)
 {
 	TreeNode<ASTNodeVal>* rootNode = (*m_nextLevel)(parserState);
+
+	if (!rootNode) {
+		return NULL;
+	}
+
 	TreeNode<ASTNodeVal>* parentNode = rootNode;
 
 	while (lookahead() == "[") {
@@ -184,7 +217,14 @@ TreeNode<ASTNodeVal>* ArrayRefParseLevelFunctor::operator()(ParserState& parserS
 
 		TreeNode<ASTNodeVal>* childNode = new TreeNode<ASTNodeVal>(parentNode);
 		childNode->val.variant.setVal(Variant::STRING, "INDEX");
-		childNode->addChild(Expression(parserState));
+
+		TreeNode<ASTNodeVal>* indexNode = Expression(parserState);
+
+		if (!indexNode) {
+			return NULL;
+		}
+
+		childNode->addChild(indexNode);
 		cout << "index" << endl;
 		match("]");
 	}
@@ -199,7 +239,7 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 	if (currToken == "IDENTIFIER") {
 		Variant v;
 		unsigned int lineNumber;
-		match("IDENTIFIER", &v, &lineNumber);		
+		match("IDENTIFIER", &v, &lineNumber);
 
 		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
 
@@ -211,6 +251,8 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 			// calling an undefined function
 			if (!LookupSymbol(parserState.functionStack, v.getStrVal(), &sym)) {
 				outputError(lineNumber, "'" + v.getStrVal() + "' undeclared");
+				delete rootNode;
+				return NULL;
 			}
 
 			rootNode->val.symbol = sym;
@@ -221,7 +263,9 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 			funcCallNode->addChild(rootNode);
 
 			if (lookahead() != ")") {
-				addChildrenToNode(funcCallNode, ExpressionList(parserState));
+				if (!addChildrenToNode(funcCallNode, ExpressionList(parserState))) {
+					return NULL;
+				}
 			}
 
 			match(")");
@@ -232,6 +276,8 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 			// use of an undefined variable
 			if (!LookupSymbol(parserState.variableStack, v.getStrVal(), &sym)) {
 				outputError(lineNumber, "'" + v.getStrVal() + "' undeclared");
+				delete rootNode;
+				return NULL;
 			}
 
 			rootNode->val.symbol = sym;
@@ -260,6 +306,26 @@ ExpressionParser::ExpressionParser()
 	firstLevel = new FinalParseLevelFunctor(0);
 	ArrayRefParseLevelFunctor*	secondLevel;
 	secondLevel = new ArrayRefParseLevelFunctor(firstLevel);
+
+	operatorNames.clear();
+	operatorNames.push_back("addr");
+	operatorNames.push_back("deref");
+	operatorNames.push_back("not");
+	operatorNames.push_back("neg");
+	operatorNames.push_back("sizeof");
+	operatorNames.push_back("mul");
+	operatorNames.push_back("div");
+	operatorNames.push_back("rem");
+	operatorNames.push_back("add");
+	operatorNames.push_back("sub");
+	operatorNames.push_back("ltn");
+	operatorNames.push_back("gtn");
+	operatorNames.push_back("leq");
+	operatorNames.push_back("geq");
+	operatorNames.push_back("eql");
+	operatorNames.push_back("neq");
+	operatorNames.push_back("and");
+	operatorNames.push_back("or");
 
 	set<string> operators;
 	map<string, string> operatorOutputMap;

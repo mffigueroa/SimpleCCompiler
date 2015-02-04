@@ -1,4 +1,4 @@
-int fib(int n, int n)
+int fib(int n)
 {
 	if (n == 0) {
 		return 0;
@@ -12,7 +12,7 @@ int fib(int n, int n)
 
 int main(int argc, char* argv)
 {
-  int x, t;
+  int x, t, a, b, z;
   int *y;
   x = y * y - z + b;
   

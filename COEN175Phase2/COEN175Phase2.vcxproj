@@ -69,6 +69,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CodeGen.cpp" />
+    <ClCompile Include="ExpressionGen.cpp" />
     <ClCompile Include="lex.cc" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ExpressionParser.cpp" />
@@ -81,6 +83,7 @@
     <ClCompile Include="Variant.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CodeGen.h" />
     <ClInclude Include="Header.h" />
     <ClInclude Include="Symbol.h" />
     <ClInclude Include="Tokens.h" />

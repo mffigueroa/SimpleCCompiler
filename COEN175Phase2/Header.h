@@ -1,3 +1,6 @@
+#ifndef __HEADER_H__
+#define __HEADER_H__
+
 #include <list>
 #include <map>
 #include <vector>
@@ -25,18 +28,23 @@ typedef struct
 	std::multimap<std::string, Symbol>	symbolTable;
 } ParserState;
 
+extern std::vector<std::string>	operatorNames;
+
 void match(const std::string& tokenType, Variant* v = 0, unsigned int* lineNumber = 0);
 std::string lookahead(unsigned int ahead = 0);
 
-bool isSpecifier(const std::string& str);
-bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, SymbolTableRef* r_symbol = 0);
-void outputError(unsigned int lineNumber, const std::string& err);
-void outputDotFile(TreeNode<ASTNodeVal>* v, const std::string& filename);
-void addChildrenToNode(TreeNode<ASTNodeVal>* v, const std::list<TreeNode<ASTNodeVal>*>& children);
-bool cmpFuncWithoutParams(const Symbol& lhs, const Symbol& rhs);
-std::string GetSpecifierName(Type::eSpecifier spec);
+bool		isSpecifier(const std::string& str);
+bool		LookupSymbol(const ScopeStack& stack, const std::string& symbolName, SymbolTableRef* r_symbol = 0);
+void		SkipErrorUntil(const std::string& synchronizeToken);
+void		outputError(unsigned int lineNumber, const std::string& err);
+void		outputDotFile(TreeNode<ASTNodeVal>* v, const std::string& filename);
+void		renderDotFile(const std::string& filename);
+void		FreeNodeList(std::list<TreeNode<ASTNodeVal>*>& children);
+bool		addChildrenToNode(TreeNode<ASTNodeVal>* v, const std::list<TreeNode<ASTNodeVal>*>& children);
+bool		cmpFuncWithoutParams(const Symbol& lhs, const Symbol& rhs);
+std::string intToStr(int i);
 
-TreeNode<ASTNodeVal>* TranslationUnit();
+void TranslationUnit(TreeNode<ASTNodeVal>** r_astRootNode, ParserState** r_parserState);
 
 size_t Pointers();
 Type::eSpecifier Specifier();
@@ -53,3 +61,5 @@ TreeNode<ASTNodeVal>*				Statements(ParserState& parserState);
 TreeNode<ASTNodeVal>*				Statement(ParserState& parserState);
 std::list<TreeNode<ASTNodeVal>*>	ExpressionList(ParserState& parserState);
 TreeNode<ASTNodeVal>*				Expression(ParserState& parserState);
+
+#endif
