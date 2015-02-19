@@ -10,18 +10,18 @@ using namespace std;
 #include "Tree.h"
 #include "Type.h"
 
-typedef void(*TypeResolver)(TreeNode<ASTNodeVal>*);
+typedef void(*TypeResolver)(TreeNode<ASTNodeVal>*, const string&);
 
-void AdditiveExpTypeResolver(TreeNode<ASTNodeVal>* node);
-void MultiplicativeExpTypeResolver(TreeNode<ASTNodeVal>* node);
-void LogicalExpTypeResolver(TreeNode<ASTNodeVal>* node);
-void EqualityAndRelationalExpTypeResolver(TreeNode<ASTNodeVal>* node);
-void DerefTypeResolver(TreeNode<ASTNodeVal>* node);
-void AddrOfTypeResolver(TreeNode<ASTNodeVal>* node);
-void NotTypeResolver(TreeNode<ASTNodeVal>* node);
-void NegTypeResolver(TreeNode<ASTNodeVal>* node);
-void SizeOfTypeResolver(TreeNode<ASTNodeVal>* node);
-void IndexTypeResolver(TreeNode<ASTNodeVal>* node);
+void AdditiveExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void MultiplicativeExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void LogicalExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void EqualityAndRelationalExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void DerefTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void AddrOfTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void NotTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void NegTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void SizeOfTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
+void IndexTypeResolver(TreeNode<ASTNodeVal>* node, const string& op);
 
 void	GetBinaryChildrenTypes(TreeNode<ASTNodeVal>* node, Type* childArr);
 void	GetUnaryChildrenType(TreeNode<ASTNodeVal>* node, Type* childType);
@@ -119,7 +119,7 @@ TreeNode<ASTNodeVal>* ParseLevelFunctor::operator()(ParserState& parserState)
 
 		if (rootNode) {
 			rootNode->addChild(childNode);
-			m_operatorTypeResolvers[opStr](rootNode);
+			m_operatorTypeResolvers[opStr](rootNode, opStr);
 			childNode = rootNode;
 		}
 
@@ -145,7 +145,7 @@ TreeNode<ASTNodeVal>* ParseLevelFunctor::operator()(ParserState& parserState)
 
 	if (rootNode) {
 		rootNode->addChild(childNode);
-		m_operatorTypeResolvers[opStr](rootNode);
+		m_operatorTypeResolvers[opStr](rootNode, opStr);
 		return rootNode;
 	} else {
 		return childNode;
@@ -189,7 +189,7 @@ TreeNode<ASTNodeVal>* PrefixParseLevelFunctor::operator()(ParserState& parserSta
 			}
 
 			rootNode->addChild(child);
-			m_operatorTypeResolvers[*op](rootNode);
+			m_operatorTypeResolvers[*op](rootNode, *op);
 		}
 
 		cout << m_operatorNames[*op] << endl;
@@ -303,7 +303,7 @@ TreeNode<ASTNodeVal>* ArrayRefParseLevelFunctor::operator()(ParserState& parserS
 
 		rootNode->addChild(indexNode);
 
-		IndexTypeResolver(rootNode);
+		IndexTypeResolver(rootNode, "[]");
 
 		cout << "index" << endl;
 		match("]");
@@ -594,7 +594,7 @@ void GetUnaryChildrenType(TreeNode<ASTNodeVal>* node, Type* childType)
 	}
 }
 
-void AdditiveExpTypeResolver(TreeNode<ASTNodeVal>* node)
+void AdditiveExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childTypes[2];
 	GetBinaryChildrenTypes(node, childTypes);
@@ -608,7 +608,7 @@ void AdditiveExpTypeResolver(TreeNode<ASTNodeVal>* node)
 		} else if (opStr == "sub" && isPointerType(childTypes[0])) {
 			node->val.variantTypeNode.type.spec = Type::LONGINT;
 		} else {
-			outputError(node->val.lineNumber, "invalid operands to binary " + node->val.variant.getStrVal());
+			outputError(node->val.lineNumber, "invalid operands to binary " + op);
 		}
 	} else if (isNumericType(childTypes[0]) && isNumericType(childTypes[1])) {
 		if (childTypes[0].spec == Type::LONGINT || childTypes[1].spec == Type::LONGINT) {
@@ -619,13 +619,13 @@ void AdditiveExpTypeResolver(TreeNode<ASTNodeVal>* node)
 	} else if (isPointerType(childTypes[0]) && isNumericType(childTypes[1])) {
 		node->val.variantTypeNode.type = childTypes[0];
 	} else {
-		outputError(node->val.lineNumber, "invalid operands to binary " + node->val.variant.getStrVal());
+		outputError(node->val.lineNumber, "invalid operands to binary " + op);
 	}
 
 	promoteType(node->val.variantTypeNode.type);
 }
 
-void MultiplicativeExpTypeResolver(TreeNode<ASTNodeVal>* node)
+void MultiplicativeExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childTypes[2];
 	GetBinaryChildrenTypes(node, childTypes);
@@ -638,43 +638,43 @@ void MultiplicativeExpTypeResolver(TreeNode<ASTNodeVal>* node)
 			node->val.variantTypeNode.type.spec = Type::INT;
 		}
 	} else {
-		outputError(node->val.lineNumber, "invalid operands to binary " + node->val.variant.getStrVal());
+		outputError(node->val.lineNumber, "invalid operands to binary " + op);
 	}
 }
 
-void LogicalExpTypeResolver(TreeNode<ASTNodeVal>* node)
+void LogicalExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childTypes[2];
 	GetBinaryChildrenTypes(node, childTypes);
 
 	if (!isLogicalType(childTypes[0]) || !isLogicalType(childTypes[1])) {
-		outputError(node->val.lineNumber, "invalid operands to binary " + node->val.variant.getStrVal());
+		outputError(node->val.lineNumber, "invalid operands to binary " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = false;
 	node->val.variantTypeNode.type.spec = Type::INT;
 }
 
-void EqualityAndRelationalExpTypeResolver(TreeNode<ASTNodeVal>* node)
+void EqualityAndRelationalExpTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childTypes[2];
 	GetBinaryChildrenTypes(node, childTypes);
 
 	if (!typesCompatible(childTypes[0], childTypes[1])) {
-		outputError(node->val.lineNumber, "invalid operands to binary " + node->val.variantTypeNode.variant.getStrVal());
+		outputError(node->val.lineNumber, "invalid operands to binary " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = false;
 	node->val.variantTypeNode.type.spec = Type::INT;
 }
 
-void DerefTypeResolver(TreeNode<ASTNodeVal>* node)
+void DerefTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childType;
 	GetUnaryChildrenType(node, &childType);
 
 	if (!isPointerType(childType)) {
-		outputError(node->val.lineNumber, "invalid operand to unary operator deref");
+		outputError(node->val.lineNumber, "invalid operand to unary operator " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = true;
@@ -685,7 +685,7 @@ void DerefTypeResolver(TreeNode<ASTNodeVal>* node)
 	}
 }
 
-void AddrOfTypeResolver(TreeNode<ASTNodeVal>* node)
+void AddrOfTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	const TreeNode<ASTNodeVal>* child = *node->getChildList().begin();
 	bool symbolLvalue = child->val.type == ASTNodeValType::SYMBOL &&
@@ -706,35 +706,35 @@ void AddrOfTypeResolver(TreeNode<ASTNodeVal>* node)
 	node->val.variantTypeNode.type.lvlsOfIndirection++;
 }
 
-void NotTypeResolver(TreeNode<ASTNodeVal>* node)
+void NotTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childType;
 	GetUnaryChildrenType(node, &childType);
 
 	// symbols are lvalues
 	if (!isLogicalType(childType)) {
-		outputError(node->val.lineNumber, "invalid operand to unary operator not");
+		outputError(node->val.lineNumber, "invalid operand to unary operator " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = false;
 	node->val.variantTypeNode.type.spec = Type::INT;
 }
 
-void NegTypeResolver(TreeNode<ASTNodeVal>* node)
+void NegTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childType;
 	GetUnaryChildrenType(node, &childType);
 
 	// symbols are lvalues
 	if (!isNumericType(childType)) {
-		outputError(node->val.lineNumber, "invalid operand to unary operator neg");
+		outputError(node->val.lineNumber, "invalid operand to unary operator " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = false;
 	node->val.variantTypeNode.type = childType;
 }
 
-void SizeOfTypeResolver(TreeNode<ASTNodeVal>* node)
+void SizeOfTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childType;
 	GetUnaryChildrenType(node, &childType);
@@ -748,13 +748,13 @@ void SizeOfTypeResolver(TreeNode<ASTNodeVal>* node)
 	node->val.variantTypeNode.type.spec = Type::LONGINT;
 }
 
-void IndexTypeResolver(TreeNode<ASTNodeVal>* node)
+void IndexTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 {
 	Type childTypes[2];
 	GetBinaryChildrenTypes(node, childTypes);
 	
 	if (!isPointerType(childTypes[0]) || !isNumericType(childTypes[1])) {
-		outputError(node->val.lineNumber, "invalid operands to binary index");
+		outputError(node->val.lineNumber, "invalid operands to binary " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = true;
