@@ -226,8 +226,8 @@ TreeNode<ASTNodeVal>* CastParseLevelFunctor::operator()(ParserState& parserState
 			TreeNode<ASTNodeVal>* child = (*this)(parserState);
 
 			if (!child) {
-				return NULL;
 				delete rootNode;
+				return NULL;
 			}
 
 			rootNode->addChild(child);
@@ -247,6 +247,7 @@ TreeNode<ASTNodeVal>* CastParseLevelFunctor::operator()(ParserState& parserState
 
 			if (childType->isFunction) {
 				outputError(lineNumber, "invalid operand in cast expression");
+				return NULL;
 			}
 
 			bool numToNum = isNumericType(castType) && isNumericType(*childType);
@@ -264,6 +265,7 @@ TreeNode<ASTNodeVal>* CastParseLevelFunctor::operator()(ParserState& parserState
 
 				if (!(castFromPtr && castToLong) && !(castFromLong && castToPtr)) {
 					outputError(lineNumber, "invalid operand in cast expression");
+					return NULL;
 				}
 			}
 
@@ -340,6 +342,7 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 
 			if (!sym->second.type.isFunction) {
 				outputError(lineNumber, "called object is not a function");
+				return NULL;
 			}
 
 			TreeNode<ASTNodeVal>* funcCallNode = new TreeNode<ASTNodeVal>;
@@ -354,6 +357,8 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 				}
 			}
 
+			match(")");
+
 			// we don't have function parameters if
 			// its not defined.
 			if (sym->second.defined) {
@@ -362,6 +367,7 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 				// incorrect number of parameters in call
 				if (children.size() - 1 != sym->second.type.funcParams.size()) {
 					outputError(lineNumber, "invalid arguments to called function");
+					return NULL;
 				}
 
 				vector<Symbol*>::const_iterator param = sym->second.type.funcParams.begin();
@@ -377,7 +383,7 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 
 						if (!typesCompatible(*tPtr, (*param)->type)) {
 							outputError(lineNumber, "invalid arguments to called function");
-							break;
+							return NULL;
 						}
 				}
 			}
@@ -388,7 +394,6 @@ TreeNode<ASTNodeVal>* FinalParseLevelFunctor::operator()(ParserState& parserStat
 			funcCallNode->val.variantTypeNode.type.isFunction = false;
 			funcCallNode->val.variantTypeNode.isLvalue = false;
 
-			match(")");
 			return funcCallNode;
 		} else {
 			SymbolTableRef sym;
@@ -674,7 +679,7 @@ void DerefTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 	GetUnaryChildrenType(node, &childType);
 
 	if (!isPointerType(childType)) {
-		outputError(node->val.lineNumber, "invalid operand to unary operator " + op);
+		outputError(node->val.lineNumber, "invalid operand to unary " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = true;
@@ -713,7 +718,7 @@ void NotTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 
 	// symbols are lvalues
 	if (!isLogicalType(childType)) {
-		outputError(node->val.lineNumber, "invalid operand to unary operator " + op);
+		outputError(node->val.lineNumber, "invalid operand to unary " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = false;
@@ -727,7 +732,7 @@ void NegTypeResolver(TreeNode<ASTNodeVal>* node, const string& op)
 
 	// symbols are lvalues
 	if (!isNumericType(childType)) {
-		outputError(node->val.lineNumber, "invalid operand to unary operator " + op);
+		outputError(node->val.lineNumber, "invalid operand to unary " + op);
 	}
 
 	node->val.variantTypeNode.isLvalue = false;

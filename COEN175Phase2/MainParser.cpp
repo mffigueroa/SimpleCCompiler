@@ -407,6 +407,7 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 
 		if (!typesCompatible(childType, *enclosingFuncRetType)) {
 			outputError(lineNumber, "invalid return type");
+			return NULL;
 		}
 
 		astRootNode->val.variantTypeNode.type = childType;
@@ -517,6 +518,8 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 				return NULL;
 			}
 
+			match(";");
+
 			astRootNode->addChild(valNode);
 
 			Type t1, t2;
@@ -540,13 +543,13 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 
 			if (!lhsIsLval) {
 				outputError(lineNumber, "lvalue required in expression");
+				return NULL;
 			}
 
 			if (!typesCompatible(t1, t2)) {
 				outputError(lineNumber, "invalid operands to binary =");
+				return NULL;
 			}
-
-			match(";");
 		} else {
 			match(";");
 			return astExpNode;
