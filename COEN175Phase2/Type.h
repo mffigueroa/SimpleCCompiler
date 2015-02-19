@@ -16,11 +16,11 @@ public:
 	} eSpecifier;
 
 	Type()
-		: spec(INT), lvlsOfIndirection(0)
+		: spec(INT), lvlsOfIndirection(0), arraySize(0), isFunction(false)
 	{}
 
-	bool operator==(const Type& rhs);
-	bool operator!=(const Type& rhs);
+	bool operator==(const Type& rhs) const;
+	bool operator!=(const Type& rhs) const;
 
 	bool					isFunction;
 	eSpecifier				spec;
@@ -28,5 +28,11 @@ public:
 	size_t					arraySize;
 	std::vector<Symbol*>	funcParams;
 };
+
+bool isNumericType(const Type& t);
+bool isLogicalType(const Type& t);
+bool isPointerType(const Type& t);
+bool typesCompatible(const Type& t1, const Type& t2);
+void promoteType(Type& t);
 
 #endif

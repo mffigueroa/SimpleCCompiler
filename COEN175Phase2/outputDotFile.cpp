@@ -17,6 +17,10 @@ using namespace std;
 
 void printVariant(const Variant& v, string& id, string& label);
 void printSymbol(const Symbol& s, string& id, string& label);
+void printVariantTypeNode(const VariantTypeNode& n, string& id, string& label);
+
+void printTypePrefix(const Type& t, string& id, string& label);
+void printTypeSuffix(const Type& t, string& id, string& label);
 void escapeQuotes(string& str);
 string outputNodeDotNotation(TreeNode<ASTNodeVal>* node, map<string, int>& idUsage, ofstream& fp, int nodeLevel = 1);
 
@@ -107,11 +111,14 @@ string outputNodeDotNotation(TreeNode<ASTNodeVal>* node, map<string, int>& idUsa
 
 	string parentNode, parentNodeLbl;
 	
-	if (node->val.isSymbol) {
+	if (node->val.type == ASTNodeValType::SYMBOL) {
 		printSymbol(node->val.symbol->second, parentNode, parentNodeLbl);
 		parentNode = GetNodeName(parentNode, idUsage);
-	} else {
+	} else if (node->val.type == ASTNodeValType::VARIANT) {
 		printVariant(node->val.variant, parentNode, parentNodeLbl);
+		parentNode = GetNodeName(parentNode, idUsage);
+	} else {
+		printVariantTypeNode(node->val.variantTypeNode, parentNode, parentNodeLbl);
 		parentNode = GetNodeName(parentNode, idUsage);
 	}
 
@@ -148,73 +155,74 @@ string outputNodeDotNotation(TreeNode<ASTNodeVal>* node, map<string, int>& idUsa
 void getSpecifierStr(Type::eSpecifier spec, string& id, string& label)
 {
 	if (spec == Type::INT) {
-		label = "int";
-		id = "INT";
+		label += "int";
+		id += "INT";
 	} else if (spec == Type::LONGINT) {
-		label = "long";
-		id = "LONGINT";
+		label += "long";
+		id += "LONGINT";
 	} else if (spec == Type::CHAR) {
-		label = "char";
-		id = "CHAR";
+		label += "char";
+		id += "CHAR";
 	} else if (spec == Type::STRING) {
-		label = "const char*";
-		id = "STRING";
+		label += "const char*";
+		id += "STRING";
 	} else if (spec == Type::UNDEFINED) {
-		label = "undefined";
-		id = "UNDEFINED";
+		label += "undefined";
+		id += "UNDEFINED";
 	}
 }
 
 void printVariant(const Variant& v, string& id, string& label)
 {
 	if (v.getType() == Variant::STRING || v.getType() == Variant::IDENTIFIER) {
-		id = label = v.getStrVal();
+		id += v.getStrVal();
+		label += v.getStrVal();
 	} else if (v.getType() == Variant::CHAR) {
-		label = "char('" + string(1, v.getCharVal()) + "')";
-		id = "CHAR_" + label;
+		label += "char('" + string(1, v.getCharVal()) + "')";
+		id += "CHAR_" + label;
 	} else if (v.getType() == Variant::INT || v.getType() == Variant::LONGINT) {
-		id = label = intToStr(v.getIntVal());
+		string intStr = intToStr(v.getIntVal());
 		if (v.getType() == Variant::INT) {
-			id = "INT_" + id;
-			label = "int(" + label + ")";
+			id += "INT_" + intStr;
+			label += "int(" + intStr + ")";
 		} else {
-			id = "LONGINT_" + id;
-			label = "long(" + label + ")";
+			id += "LONGINT_" + intStr;
+			label += "long(" + intStr + ")";
 		}
 	} else if (v.getType() == Variant::SPECIFIER) {
 		getSpecifierStr(v.getSpecifierVal(), id, label);
 	} else {
-		label = "Undefined Variant";
-		id = "UNDEFINED";
+		label += "Undefined Variant";
+		id += "UNDEFINED";
 	}
 }
 
-void printSymbol(const Symbol& s, string& id, string& label)
+void printTypePrefix(const Type& t, string& id, string& label)
 {
-	getSpecifierStr(s.type.spec, id, label);
+	getSpecifierStr(t.spec, id, label);
 
-	for (size_t i = 0; i < s.type.lvlsOfIndirection; ++i) {
+	for (size_t i = 0; i < t.lvlsOfIndirection; ++i) {
 		label += "*";
 		id += "_PTR";
 	}
 
-	if (s.type.isFunction && s.type.arraySize > 0) {
-		label += "[" + intToStr(s.type.arraySize) + "]";
-		id += "_ARR" + intToStr(s.type.arraySize);
+	if (t.isFunction && t.arraySize > 0) {
+		label += "[" + intToStr(t.arraySize) + "]";
+		id += "_ARR" + intToStr(t.arraySize);
+	}
+}
+
+void printTypeSuffix(const Type& t, string& id, string& label)
+{
+	if (!t.isFunction && t.arraySize > 0) {
+		label += "[" + intToStr(t.arraySize) + "]";
+		id += "_ARR" + intToStr(t.arraySize);
 	}
 
-	label += " " + s.identifier;
-	id += "_" + s.identifier;
-
-	if (!s.type.isFunction && s.type.arraySize > 0) {
-		label += "[" + intToStr(s.type.arraySize) + "]";
-		id += "_ARR" + intToStr(s.type.arraySize);
-	}
-
-	if (s.type.isFunction) {
+	if (t.isFunction) {
 		label += "(";
-		
-		vector<Symbol*>::const_iterator i_begin = s.type.funcParams.begin(), i_end = s.type.funcParams.end(), i = i_begin;
+
+		vector<Symbol*>::const_iterator i_begin = t.funcParams.begin(), i_end = t.funcParams.end(), i = i_begin;
 		for (; i != i_end; ++i) {
 			if (i != i_begin) {
 				label += ", ";
@@ -229,6 +237,32 @@ void printSymbol(const Symbol& s, string& id, string& label)
 
 		label += ")";
 	}
+}
+
+void printVariantTypeNode(const VariantTypeNode& n, string& id, string& label)
+{
+	printVariant(n.variant, id, label);
+	label += "\\n";
+	id += "_";
+
+	if (n.isLvalue) {
+		label += "LVALUE\\n";
+	} else {
+		label += "RVALUE\\n";
+	}
+
+	printTypePrefix(n.type, id, label);
+	printTypeSuffix(n.type, id, label);
+}
+
+void printSymbol(const Symbol& s, string& id, string& label)
+{
+	printTypePrefix(s.type, id, label);
+
+	label += " " + s.identifier;
+	id += "_" + s.identifier;
+
+	printTypeSuffix(s.type, id, label);
 }
 
 void escapeQuotes(string& str)

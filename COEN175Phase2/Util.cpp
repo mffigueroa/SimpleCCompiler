@@ -151,3 +151,39 @@ std::string intToStr(int i)
 
 	return string(buf);
 }
+
+bool GetSymbolType(const ASTNodeVal& node, Type* t, bool* isLvalue)
+{
+	if (node.type == ASTNodeValType::SYMBOL) {
+		if (isLvalue) {
+			*isLvalue = !node.symbol->second.type.isFunction && node.symbol->second.type.arraySize <= 0;
+		}
+
+		*t = node.symbol->second.type;
+		return true;
+	}
+
+	return false;
+}
+
+bool GetVariantType(const ASTNodeVal& node, Type* t)
+{
+	if (node.type == ASTNodeValType::VARIANT) {
+		Variant::VariantType type = node.variant.getType();
+
+		if (type == Variant::STRING) {
+			t->spec = Type::CHAR;
+			t->arraySize = node.variant.getStrVal().length();
+		} else if (type == Variant::CHAR) {
+			t->spec = Type::INT;
+		} else if (type == Variant::INT) {
+			t->spec = Type::INT;
+		} else if (type == Variant::LONGINT) {
+			t->spec = Type::LONGINT;
+		}
+
+		return true;
+	}
+
+	return false;
+}

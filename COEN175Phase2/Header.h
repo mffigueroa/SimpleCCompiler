@@ -13,10 +13,33 @@
 #include "Variant.h"
 
 typedef std::multimap<std::string, Symbol>::iterator SymbolTableRef;
+
+typedef struct _VariantTypeNode
+{
+	Variant variant;
+	Type	type;
+	bool	isLvalue;
+
+	_VariantTypeNode() :
+		isLvalue(false) {}
+} VariantTypeNode;
+
+namespace ASTNodeValType
+{
+	typedef enum
+	{
+		SYMBOL,
+		VARIANT,
+		VARIANTTYPENODE
+	} eASTNodeValType;
+};
+
 typedef struct {
-	SymbolTableRef	symbol;
-	Variant			variant;
-	bool			isSymbol;
+	SymbolTableRef					symbol;
+	Variant							variant;
+	VariantTypeNode					variantTypeNode;
+	unsigned int					lineNumber;
+	ASTNodeValType::eASTNodeValType	type;
 } ASTNodeVal;
 
 typedef std::map<std::string, SymbolTableRef>	Scope;
@@ -24,7 +47,7 @@ typedef std::list<Scope>						ScopeStack;
 
 typedef struct
 {
-	ScopeStack							variableStack, functionStack;
+	ScopeStack							stack;
 	std::multimap<std::string, Symbol>	symbolTable;
 } ParserState;
 
@@ -43,6 +66,8 @@ void		FreeNodeList(std::list<TreeNode<ASTNodeVal>*>& children);
 bool		addChildrenToNode(TreeNode<ASTNodeVal>* v, const std::list<TreeNode<ASTNodeVal>*>& children);
 bool		cmpFuncWithoutParams(const Symbol& lhs, const Symbol& rhs);
 std::string intToStr(int i);
+bool		GetSymbolType(const ASTNodeVal& node, Type* t, bool* isLvalue = NULL);
+bool		GetVariantType(const ASTNodeVal& node, Type* t);
 
 void TranslationUnit(TreeNode<ASTNodeVal>** r_astRootNode, ParserState** r_parserState);
 
@@ -57,8 +82,8 @@ TreeNode<ASTNodeVal>*				Parameter(ParserState& parserState, Symbol& s);
 TreeNode<ASTNodeVal>*				Declarations(ParserState& parserState);
 std::list<TreeNode<ASTNodeVal>*>	Declaration(ParserState& parserState, bool global = false);
 TreeNode<ASTNodeVal>*				Declarator(ParserState& parserState, Type::eSpecifier spec, bool global = false);
-TreeNode<ASTNodeVal>*				Statements(ParserState& parserState);
-TreeNode<ASTNodeVal>*				Statement(ParserState& parserState);
+TreeNode<ASTNodeVal>*				Statements(ParserState& parserState, Type* enclosingFuncRetType);
+TreeNode<ASTNodeVal>*				Statement(ParserState& parserState, Type* enclosingFuncRetType);
 std::list<TreeNode<ASTNodeVal>*>	ExpressionList(ParserState& parserState);
 TreeNode<ASTNodeVal>*				Expression(ParserState& parserState);
 

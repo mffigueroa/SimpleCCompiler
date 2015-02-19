@@ -7,7 +7,7 @@ using namespace std;
 
 void CodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
 {
-	if (node->val.isSymbol) {
+	if (node->val.type == ASTNodeValType::SYMBOL) {
 		if (node->val.symbol->second.type.isFunction) {
 			FuncCodeGen(node);
 		} else {
@@ -37,7 +37,7 @@ void BlockCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
 	const list<TreeNode<ASTNodeVal>*>& children = node->getChildList();
 	list<TreeNode<ASTNodeVal>*>::const_iterator it = children.begin(), it_end = children.end();
 	for (; it != it_end; ++it) {
-		if (!(*it)->val.isSymbol && (*it)->val.variant.getStrVal() == "DECLS") {
+		if ((*it)->val.type == ASTNodeValType::VARIANT && (*it)->val.variant.getStrVal() == "DECLS") {
 			break;
 		}
 	}
@@ -46,7 +46,7 @@ void BlockCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
 		const list<TreeNode<ASTNodeVal>*>& declChildren = (*it)->getChildList();
 		list<TreeNode<ASTNodeVal>*>::const_iterator declIt = declChildren.begin(), declIt_end = declChildren.end();
 		for (; declIt != declIt_end; ++declIt) {
-			if ((*declIt)->val.isSymbol) {
+			if ((*declIt)->val.type == ASTNodeValType::SYMBOL) {
 				regAlloc.push_back((*declIt)->val.symbol);
 			}
 		}
@@ -54,7 +54,7 @@ void BlockCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
 
 	it = children.begin(), it_end = children.end();
 	for (; it != it_end; ++it) {
-		if (!(*it)->val.isSymbol && (*it)->val.variant.getStrVal() == "STMTS") {
+		if ((*it)->val.type == ASTNodeValType::VARIANT && (*it)->val.variant.getStrVal() == "STMTS") {
 			const list<TreeNode<ASTNodeVal>*>& stmtsChildren = (*it)->getChildList();
 			list<TreeNode<ASTNodeVal>*>::const_iterator stmtIt = stmtsChildren.begin(), stmtIt_end = stmtsChildren.end();
 			

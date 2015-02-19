@@ -38,9 +38,9 @@ void TranslationUnit(TreeNode<ASTNodeVal>** r_astRootNode, ParserState** r_parse
 	TreeNode<ASTNodeVal>	*astRootNode = new TreeNode<ASTNodeVal>;
 	ParserState				*parserState = new ParserState;
 
-	parserState->variableStack.push_back(Scope());
-	parserState->functionStack.push_back(Scope());
+	parserState->stack.push_back(Scope());
 
+	astRootNode->val.type = ASTNodeValType::VARIANT;
 	astRootNode->val.variant.setVal(Variant::STRING, "TranslationUnit");
 
 	while (lookahead() != "EOF") {
@@ -63,8 +63,7 @@ void TranslationUnit(TreeNode<ASTNodeVal>** r_astRootNode, ParserState** r_parse
 		}
 	}
 
-	parserState->variableStack.pop_back();
-	parserState->functionStack.pop_back();
+	parserState->stack.pop_back();
 
 	*r_astRootNode = astRootNode;
 	*r_parserState = parserState;
@@ -73,8 +72,7 @@ void TranslationUnit(TreeNode<ASTNodeVal>** r_astRootNode, ParserState** r_parse
 TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
 {
 	// open the function's scope
-	parserState.variableStack.push_back(Scope());
-	parserState.functionStack.push_back(Scope());
+	parserState.stack.push_back(Scope());
 
 	TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
 
@@ -96,8 +94,18 @@ TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
 
 	// check if function already defined, if so, error.
 	// otherwise define it in the scope.
+	ScopeStack::iterator currScope;
+	currScope = parserState.stack.begin();
+
+	Scope::const_iterator it = currScope->find(s.identifier);
+
 	SymbolTableRef sym;
-	if (LookupSymbol(parserState.functionStack, s.identifier, &sym)) {
+
+	// Is the variable already defined in the current scope?
+	// If so, error, otherwise define it.
+	if (it != currScope->end()) {
+		sym = it->second;
+
 		if (sym->second.defined) {
 			outputError(lineNumber, "redefinition of '" + s.identifier + "'");
 		} else if (!cmpFuncWithoutParams(s, sym->second)) {
@@ -117,24 +125,28 @@ TreeNode<ASTNodeVal>* FunctionDefinition(ParserState& parserState)
 		sym->second = s;
 	} else {
 		sym = parserState.symbolTable.insert(pair<string, Symbol>(s.identifier, s));
-		ScopeStack::reverse_iterator i = ++parserState.functionStack.rbegin();
+		ScopeStack::reverse_iterator i = ++parserState.stack.rbegin();
 		(*i)[s.identifier] = sym;
 	}
 
 	rootNode->val.symbol = sym;
-	rootNode->val.isSymbol = true;
+	rootNode->val.type = ASTNodeValType::SYMBOL;
+
+	Type retType;
+	retType.arraySize = sym->second.type.arraySize;
+	retType.lvlsOfIndirection = sym->second.type.lvlsOfIndirection;
+	retType.spec = sym->second.type.spec;
 
 	match("{");
 	// ignore the output of these functions.
 	// if they return NULL then they just won't be added
 	// to the tree.
 	rootNode->addChild(Declarations(parserState));
-	rootNode->addChild(Statements(parserState));
+	rootNode->addChild(Statements(parserState, &retType));
 	match("}");
 
 	// close the function's scope
-	parserState.functionStack.pop_back();
-	parserState.variableStack.pop_back();
+	parserState.stack.pop_back();
 
 	return rootNode;
 }
@@ -146,6 +158,7 @@ TreeNode<ASTNodeVal>* Parameters(ParserState& parserState, vector<Symbol*>& func
 		return NULL;
 	} else {
 		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
+		rootNode->val.type = ASTNodeValType::VARIANT;
 		rootNode->val.variant.setVal(Variant::STRING, "Parameters");
 
 		Symbol* a = new Symbol;
@@ -187,7 +200,7 @@ TreeNode<ASTNodeVal>* Parameter(ParserState& parserState, Symbol& s)
 	match("IDENTIFIER", &v, &lineNumber);
 	s.identifier = v.getStrVal();
 
-	ScopeStack::reverse_iterator currScope = parserState.variableStack.rbegin();
+	ScopeStack::reverse_iterator currScope = parserState.stack.rbegin();
 	Scope::const_iterator it = currScope->find(s.identifier);
 
 	SymbolTableRef sym;
@@ -204,7 +217,7 @@ TreeNode<ASTNodeVal>* Parameter(ParserState& parserState, Symbol& s)
 
 	TreeNode<ASTNodeVal>* node = new TreeNode<ASTNodeVal>;
 	node->val.symbol = sym;
-	node->val.isSymbol = true;
+	node->val.type = ASTNodeValType::SYMBOL;
 
 	return node;
 }
@@ -212,6 +225,7 @@ TreeNode<ASTNodeVal>* Parameter(ParserState& parserState, Symbol& s)
 TreeNode<ASTNodeVal>* Declarations(ParserState& parserState)
 {
 	TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
+	rootNode->val.type = ASTNodeValType::VARIANT;
 	rootNode->val.variant.setVal(Variant::STRING, "DECLS");
 
 	for (string currToken = lookahead(); isSpecifier(currToken); currToken = lookahead()) {
@@ -273,12 +287,7 @@ TreeNode<ASTNodeVal>* Declarator(ParserState& parserState, Type::eSpecifier spec
 	}
 
 	ScopeStack::reverse_iterator currScope;
-	
-	if (s.type.isFunction) {
-		currScope = parserState.functionStack.rbegin();
-	} else {
-		currScope = parserState.variableStack.rbegin();
-	}
+	currScope = parserState.stack.rbegin();
 
 	Scope::const_iterator it = currScope->find(s.identifier);
 
@@ -289,10 +298,13 @@ TreeNode<ASTNodeVal>* Declarator(ParserState& parserState, Type::eSpecifier spec
 	if (it != currScope->end()) {
 		newSym = it->second;
 
-		if (global && s != newSym->second) {
+		if (global && !s.type.isFunction && s != newSym->second) {
 			outputError(lineNumber, "conflicting types for '" + s.identifier + "'");
 			return NULL;
-		} else {
+		} else if (global && s.type.isFunction && !cmpFuncWithoutParams(s, newSym->second)) {
+			outputError(lineNumber, "conflicting types for '" + s.identifier + "'");
+			return NULL;
+		} else if (!s.type.isFunction && !global) {
 			outputError(lineNumber, "redeclaration of '" + s.identifier + "'");
 			return NULL;
 		}
@@ -303,14 +315,15 @@ TreeNode<ASTNodeVal>* Declarator(ParserState& parserState, Type::eSpecifier spec
 
 	TreeNode<ASTNodeVal>* node = new TreeNode<ASTNodeVal>;
 	node->val.symbol = newSym;
-	node->val.isSymbol = true;
+	node->val.type = ASTNodeValType::SYMBOL;
 
 	return node;
 }
 
-TreeNode<ASTNodeVal>* Statements(ParserState& parserState)
+TreeNode<ASTNodeVal>* Statements(ParserState& parserState, Type* enclosingFuncRetType)
 {
 	TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
+	rootNode->val.type = ASTNodeValType::VARIANT;
 	rootNode->val.variant.setVal(Variant::STRING, "STMTS");
 
 	while (lookahead() != "}")
@@ -318,13 +331,13 @@ TreeNode<ASTNodeVal>* Statements(ParserState& parserState)
 		// ignore if Statement returns NULL or not.
 		// equivalent to just skipping over invalid
 		// statements.
-		rootNode->addChild(Statement(parserState));
+		rootNode->addChild(Statement(parserState, enclosingFuncRetType));
 	}
 
 	return rootNode;
 }
 
-TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
+TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRetType)
 {
 	string currToken = lookahead();
 
@@ -333,8 +346,9 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 	if (currToken == "{") {
 		match("{");
 
-		parserState.variableStack.push_back(Scope());
+		parserState.stack.push_back(Scope());
 
+		astRootNode->val.type = ASTNodeValType::VARIANT;
 		astRootNode->val.variant.setVal(Variant::STRING, "BLOCK");
 
 		TreeNode<ASTNodeVal>* declNode = Declarations(parserState);
@@ -342,32 +356,34 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 		if (!declNode) {
 			SkipErrorUntil("}");
 			match("}");
-			parserState.variableStack.pop_back();
+			parserState.stack.pop_back();
 			delete astRootNode;
 			return NULL;
 		}
 
 		astRootNode->addChild(declNode);
 
-		TreeNode<ASTNodeVal>* stmtsNode = Statements(parserState);
+		TreeNode<ASTNodeVal>* stmtsNode = Statements(parserState, enclosingFuncRetType);
 
 		if (!stmtsNode) {
 			SkipErrorUntil("}");
 			match("}");
-			parserState.variableStack.pop_back();
+			parserState.stack.pop_back();
 			delete astRootNode;
 			return NULL;
 		}
 
 		astRootNode->addChild(stmtsNode);
 
-		parserState.variableStack.pop_back();
+		parserState.stack.pop_back();
 
 		match("}");
 	} else if (currToken == "return") {
-		match("return");
+		unsigned int lineNumber;
+		match("return", NULL, &lineNumber);
 
-		astRootNode->val.variant.setVal(Variant::STRING, "RETURN");
+		astRootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+		astRootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "RETURN");
 
 		TreeNode<ASTNodeVal>* expNode = Expression(parserState);
 
@@ -380,10 +396,28 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 			astRootNode->addChild(expNode);
 			match(";");
 		}
+
+		Type childType;
+
+		if (!GetSymbolType(expNode->val, &childType)) {
+			if (!GetVariantType(expNode->val, &childType)) {
+				childType = expNode->val.variantTypeNode.type;
+			}
+		}
+
+		if (!typesCompatible(childType, *enclosingFuncRetType)) {
+			outputError(lineNumber, "invalid return type");
+		}
+
+		astRootNode->val.variantTypeNode.type = childType;
 	} else if (currToken == "while") {
 		match("while");
-		match("(");
 
+		unsigned int lineNumber;
+
+		match("(", NULL, &lineNumber);
+
+		astRootNode->val.type = ASTNodeValType::VARIANT;
 		astRootNode->val.variant.setVal(Variant::STRING, "WHILE");
 
 		TreeNode<ASTNodeVal>* conditionNode = Expression(parserState);
@@ -394,9 +428,21 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 			astRootNode->addChild(conditionNode);
 		}
 
+		Type conditionType;
+
+		if (!GetSymbolType(conditionNode->val, &conditionType)) {
+			if (!GetVariantType(conditionNode->val, &conditionType)) {
+				conditionType = conditionNode->val.variantTypeNode.type;
+			}
+		}
+
+		if (!isLogicalType(conditionType)) {
+			outputError(lineNumber, "invalid type for test expression");
+		}
+
 		match(")");
 
-		TreeNode<ASTNodeVal>* stmtNode = Statement(parserState);
+		TreeNode<ASTNodeVal>* stmtNode = Statement(parserState, enclosingFuncRetType);
 
 		if (stmtNode) {
 			astRootNode->addChild(stmtNode);
@@ -406,8 +452,12 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 		}
 	} else if (currToken == "if") {
 		match("if");
-		match("(");
 
+		unsigned int lineNumber;
+
+		match("(", NULL, &lineNumber);
+
+		astRootNode->val.type = ASTNodeValType::VARIANT;
 		astRootNode->val.variant.setVal(Variant::STRING, "IF");
 
 		TreeNode<ASTNodeVal>* conditionNode = Expression(parserState);
@@ -418,16 +468,29 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 			astRootNode->addChild(conditionNode);
 		}
 
+		Type conditionType;
+
+		if (!GetSymbolType(conditionNode->val, &conditionType)) {
+			if (!GetVariantType(conditionNode->val, &conditionType)) {
+				conditionType = conditionNode->val.variantTypeNode.type;
+			}
+		}
+
+		if (!isLogicalType(conditionType)) {
+			outputError(lineNumber, "invalid type for test expression");
+		}
+
 		match(")");
 
-		astRootNode->addChild(Statement(parserState));
+		astRootNode->addChild(Statement(parserState, enclosingFuncRetType));
 
 		if (lookahead() == "else") {
 			match("else");
 
 			TreeNode<ASTNodeVal>* astElseNode = new TreeNode<ASTNodeVal>(astRootNode);
+			astElseNode->val.type = ASTNodeValType::VARIANT;
 			astElseNode->val.variant.setVal(Variant::STRING, "ELSE");
-			astElseNode->addChild(Statement(parserState));
+			astElseNode->addChild(Statement(parserState, enclosingFuncRetType));
 		}
 	} else {
 		TreeNode<ASTNodeVal>* astExpNode = Expression(parserState);
@@ -439,8 +502,10 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 		}
 
 		if (lookahead() == "=") {
-			match("=");
+			unsigned int lineNumber;
+			match("=", NULL, &lineNumber);
 
+			astRootNode->val.type = ASTNodeValType::VARIANT;
 			astRootNode->val.variant.setVal(Variant::STRING, "ASSIGN");
 			astRootNode->addChild(astExpNode);
 
@@ -453,6 +518,34 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState)
 			}
 
 			astRootNode->addChild(valNode);
+
+			Type t1, t2;
+
+			bool lhsIsLval;
+
+			if (!GetSymbolType(astExpNode->val, &t1, &lhsIsLval)) {
+				if (!GetVariantType(astExpNode->val, &t1)) {
+					lhsIsLval = astExpNode->val.variantTypeNode.isLvalue;
+					t1 = astExpNode->val.variantTypeNode.type;
+				} else {
+					lhsIsLval = false;
+				}
+			}
+
+			if (!GetSymbolType(valNode->val, &t2, &lhsIsLval)) {
+				if (!GetVariantType(valNode->val, &t2)) {
+					t2 = valNode->val.variantTypeNode.type;
+				}
+			}
+
+			if (!lhsIsLval) {
+				outputError(lineNumber, "lvalue required in expression");
+			}
+
+			if (!typesCompatible(t1, t2)) {
+				outputError(lineNumber, "invalid operands to binary assign");
+			}
+
 			match(";");
 		} else {
 			match(";");
