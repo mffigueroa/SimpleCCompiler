@@ -543,7 +543,7 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 			}
 
 			if (!typesCompatible(t1, t2)) {
-				outputError(lineNumber, "invalid operands to binary assign");
+				outputError(lineNumber, "invalid operands to binary =");
 			}
 
 			match(";");
