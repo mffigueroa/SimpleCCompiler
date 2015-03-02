@@ -113,3 +113,28 @@ void promoteType(Type& t)
 		t.spec = Type::INT;
 	}
 }
+
+size_t	GetTypeSize(const Type& t)
+{
+	size_t varSize;
+
+	if (t.lvlsOfIndirection > 0) {
+		// a pointer
+		varSize = 8;
+	}
+	else if (t.spec == Type::LONGINT) {
+		varSize = 8;
+	}
+	else if (t.spec == Type::INT) {
+		varSize = 4;
+	}
+	else if (t.spec == Type::CHAR) {
+		varSize = 1;
+	}
+
+	if (t.arraySize > 0) {
+		varSize *= t.arraySize;
+	}
+
+	return varSize;
+}

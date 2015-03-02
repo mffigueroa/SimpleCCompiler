@@ -35,6 +35,11 @@ public:
 		}
 	}
 
+	typename std::list<TreeNode<T>*>& getChildList()
+	{
+		return m_children;
+	}
+
 	typename const std::list<TreeNode<T>*>& getChildList() const
 	{
 		return m_children;

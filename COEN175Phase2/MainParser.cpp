@@ -159,7 +159,7 @@ TreeNode<ASTNodeVal>* Parameters(ParserState& parserState, vector<Symbol*>& func
 	} else {
 		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
 		rootNode->val.type = ASTNodeValType::VARIANT;
-		rootNode->val.variant.setVal(Variant::STRING, "Parameters");
+		rootNode->val.variant.setVal(Variant::STRING, "PARAMS");
 
 		Symbol* a = new Symbol;
 
@@ -271,6 +271,7 @@ TreeNode<ASTNodeVal>* Declarator(ParserState& parserState, Type::eSpecifier spec
 	match("IDENTIFIER", &ident, &lineNumber);
 
 	s.identifier = ident.getStrVal();
+	s.isGlobal = global;
 	s.type.spec = spec;
 	s.type.isFunction = false;
 	s.type.arraySize = 0;

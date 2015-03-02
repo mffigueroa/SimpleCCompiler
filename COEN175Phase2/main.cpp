@@ -18,8 +18,11 @@ int main()
   outputDotFile(ast, "ast.dot");
   renderDotFile("ast.dot");
 
-  /*RegisterAllocation tmp;
-  CodeGen(ast, tmp);*/
+  stringstream ss;
+  InitRegMaps();
+  RootCodeGen(ss, ast);
+
+  cout << ss.str();
 
   delete ast;
   delete parserState;

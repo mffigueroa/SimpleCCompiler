@@ -4,67 +4,124 @@ using namespace std;
 
 #include "CodeGen.h"
 
-void MultiplyCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc);
-void DivideCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc);
-void AddCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc);
-void SubtractCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc);
+Type SymbolAccessCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, bool expectPointer);
+Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state);
+Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state);
+Type AddCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state);
+Type SubtractCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state);
 
-void ExpressionCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
+void BinaryOpParamCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, Type& r_lhs, Type& r_rhs);
+
+Type ExpressionCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, bool expectPointer)
 {
+	if (node->val.type == ASTNodeValType::SYMBOL) {
+		return SymbolAccessCodeGen(ss, node, state, expectPointer);
+	}
+
 	const string& nodeName = node->val.variant.getStrVal();
 	if (nodeName == "mul") {
-		MultiplyCodeGen(node, regAlloc);
+		return MultiplyCodeGen(ss, node, state);
 	} else if (nodeName == "div") {
-		DivideCodeGen(node, regAlloc);
+		return DivideCodeGen(ss, node, state);
 	} else if (nodeName == "add") {
-		AddCodeGen(node, regAlloc);
+		return AddCodeGen(ss, node, state);
 	} else if (nodeName == "sub") {
-		SubtractCodeGen(node, regAlloc);
+		return SubtractCodeGen(ss, node, state);
 	}
 }
 
-void MultiplyCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
+Type SymbolAccessCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, bool expectPointer)
 {
-	// evaluate the two child nodes
-	list<TreeNode<ASTNodeVal>*>::const_iterator child = node->getChildList().begin();
-	CodeGen(*child, regAlloc);
-	++child;
-	CodeGen(*child, regAlloc);
+	// puts a pointer to the symbol in %rax
+	const Symbol& sym = node->val.symbol->second;
+	Indent(ss);
 
-	;
+	if (expectPointer) {
+		ss << "lea";
+	} else {
+		ss << "mov";
+	}
+
+	ss << GetInstSuffixForType(sym.type) << " " << GetSymbolPointer(sym, state) << ", %rax" << endl;
+	return sym.type;
 }
 
-void DivideCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
+// evaluates the two binary parameters and stores the lhs in %rax and the rhs in %rdi
+void BinaryOpParamCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, Type& r_lhsType, Type& r_rhsType)
+{
+	// evaluate the two child nodes
+	list<TreeNode<ASTNodeVal>*>::iterator child = node->getChildList().begin();
+	TreeNode<ASTNodeVal>* lhs = *child;
+	++child;
+	TreeNode<ASTNodeVal>* rhs = *child;
+
+	r_rhsType = ExpressionCodeGen(ss, rhs, state);
+	size_t rhsTypeSize = GetTypeSize(r_rhsType);
+	char rhsTypeInstSuffix = GetInstSuffixForType(r_rhsType);
+
+	// push the lhs value on the stack while we evaluate the
+	// next expression
+	size_t scopeStackOffsetIndex = state.scopeStackOffsets.size() - 2;
+	state.scopeStackOffsets[scopeStackOffsetIndex] += rhsTypeSize;
+
+	Indent(ss);
+	ss << "push" << rhsTypeInstSuffix << " " << GetRegNameForType(r_rhsType, Registers::RAX) << endl;
+
+	r_lhsType = ExpressionCodeGen(ss, lhs, state);
+
+	// pop the lhs value off the stack into %rdi
+	state.scopeStackOffsets[scopeStackOffsetIndex] -= rhsTypeSize;
+	state.regAlloc[Registers::RDI] = true;
+
+	Indent(ss);
+	ss << "pop" << rhsTypeInstSuffix << " " << GetRegNameForType(r_rhsType, Registers::RDI) << endl;
+}
+
+Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state)
+{
+	Type lhsType, rhsType;
+	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType);
+
+	ss << "imul" << GetInstSuffixForType(lhsType) << " " << GetRegNameForType(rhsType, Registers::RDI) << endl;
+
+	state.regAlloc[Registers::RAX] = true;
+
+	return lhsType;
+}
+
+Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state)
 {
 	// evaluate the two child nodes
 	list<TreeNode<ASTNodeVal>*>::const_iterator child = node->getChildList().begin();
-	CodeGen(*child, regAlloc);
+	Type lhsType = ExpressionCodeGen(ss, *child, state);
 	++child;
-	CodeGen(*child, regAlloc);
+	Type rhsType = ExpressionCodeGen(ss, *child, state);
 
-	;
+	return rhsType;
 }
 
 
-void AddCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
+Type AddCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state)
 {
-	// evaluate the two child nodes
-	list<TreeNode<ASTNodeVal>*>::const_iterator child = node->getChildList().begin();
-	CodeGen(*child, regAlloc);
-	++child;
-	CodeGen(*child, regAlloc);
+	Type lhsType, rhsType;
+	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType);
 
-	;
+	ss << "add" << GetInstSuffixForType(lhsType) << " " << GetRegNameForType(rhsType, Registers::RDI)
+		<< ", " << GetRegNameForType(lhsType, Registers::RAX) << endl;
+	state.regAlloc[Registers::RAX] = true;
+
+	return rhsType;
 }
 
 
-void SubtractCodeGen(TreeNode<ASTNodeVal>* node, RegisterAllocation& regAlloc)
+Type SubtractCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state)
 {
-	// evaluate the two child nodes
-	list<TreeNode<ASTNodeVal>*>::const_iterator child = node->getChildList().begin();
-	CodeGen(*child, regAlloc);
-	++child;
-	CodeGen(*child, regAlloc);
+	Type lhsType, rhsType;
+	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType);
 
-	;
+	ss << "sub" << GetInstSuffixForType(lhsType) << " " << GetRegNameForType(rhsType, Registers::RDI)
+		<< ", " << GetRegNameForType(lhsType, Registers::RAX) << endl;
+	state.regAlloc[Registers::RAX] = true;
+
+	return rhsType;
 }
