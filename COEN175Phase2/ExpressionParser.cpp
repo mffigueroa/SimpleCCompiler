@@ -455,6 +455,8 @@ ExpressionParser::ExpressionParser()
 	operatorNames.push_back("neq");
 	operatorNames.push_back("and");
 	operatorNames.push_back("or");
+	operatorNames.push_back("INDEX");
+	operatorNames.push_back("CAST");
 
 	set<string> operators;
 	map<string, string> operatorOutputMap;

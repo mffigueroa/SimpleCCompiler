@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <vector>
 #include <string>
@@ -15,14 +16,16 @@ int main()
   ParserState*			parserState;
   TranslationUnit(&ast, &parserState);
 
-  outputDotFile(ast, "ast.dot");
-  renderDotFile("ast.dot");
+  //outputDotFile(ast, "ast.dot");
+  //renderDotFile("ast.dot");
 
   stringstream ss;
   InitRegMaps();
   RootCodeGen(ss, ast);
 
+  ofstream fp("output.asm", ios::out);
   cout << ss.str();
+  fp << ss.str();
 
   delete ast;
   delete parserState;

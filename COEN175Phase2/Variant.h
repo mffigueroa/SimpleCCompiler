@@ -29,6 +29,7 @@ public:
 
 	void setVal(VariantType spec, const std::string& strVal);
 	void setVal(Type::eSpecifier spec);
+	void setVal(long long i);
 	void setVal(int i);
 	void setVal(char c);
 	VariantType getType() const;
@@ -36,7 +37,7 @@ public:
 	Type::eSpecifier	getSpecifierVal() const;
 	std::string	getSymbolVal() const;
 	std::string	getStrVal() const;
-	int			getIntVal() const;
+	long long	getIntVal() const;
 	char		getCharVal() const;
 
 private:
@@ -44,7 +45,7 @@ private:
 
 	union
 	{		
-		int					m_intVal;
+		long long			m_intVal;
 		char				m_charVal;
 		Type::eSpecifier	m_specVal;
 	};

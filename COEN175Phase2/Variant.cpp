@@ -4,7 +4,7 @@ using namespace std;
 #include "Variant.h"
 
 Variant::Variant()
-	: m_type(UNDEFINED)
+	: m_type(UNDEFINED), m_intVal(0)
 {}
 
 Variant::Variant(VariantType type, const string& strVal)
@@ -16,6 +16,12 @@ void Variant::setVal(Type::eSpecifier spec)
 {
 	m_type = SPECIFIER;
 	m_specVal = spec;
+}
+
+void Variant::setVal(long long i)
+{
+	m_type = LONGINT;
+	m_intVal = i;
 }
 
 void Variant::setVal(int i)
@@ -129,7 +135,7 @@ std::string	Variant::getStrVal() const
 	return m_strVal;
 }
 
-int Variant::getIntVal() const
+long long Variant::getIntVal() const
 {
 	return m_intVal;
 }

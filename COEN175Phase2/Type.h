@@ -34,6 +34,6 @@ bool	isLogicalType(const Type& t);
 bool	isPointerType(const Type& t);
 bool	typesCompatible(const Type& t1, const Type& t2);
 void	promoteType(Type& t);
-size_t	GetTypeSize(const Type& t);
+size_t	GetTypeSize(const Type& t, bool accountForArraySize = true);
 
 #endif

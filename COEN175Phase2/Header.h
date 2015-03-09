@@ -34,12 +34,14 @@ namespace ASTNodeValType
 	} eASTNodeValType;
 };
 
-typedef struct {
+typedef struct _ASTNodeVal {
 	SymbolTableRef					symbol;
 	Variant							variant;
 	VariantTypeNode					variantTypeNode;
 	unsigned int					lineNumber;
 	ASTNodeValType::eASTNodeValType	type;
+
+	_ASTNodeVal();
 } ASTNodeVal;
 
 typedef std::map<std::string, SymbolTableRef>	Scope;

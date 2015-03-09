@@ -173,7 +173,7 @@ bool GetVariantType(const ASTNodeVal& node, Type* t)
 
 		if (type == Variant::STRING) {
 			t->spec = Type::CHAR;
-			t->arraySize = node.variant.getStrVal().length();
+			t->lvlsOfIndirection = 1;
 		} else if (type == Variant::CHAR) {
 			t->spec = Type::INT;
 		} else if (type == Variant::INT) {

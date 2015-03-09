@@ -14,9 +14,9 @@ int **insert(int **root, int *data)
 	root[0] = data;
 	root[1] = null;
 	root[2] = null;
-    } else if (data < root[0])
+    } else if (*data < *root[0])
 	root[1] = (int *) insert((int **) root[1], data);
-    else if (data > root[0])
+    else if (*data > *root[0])
 	root[2] = (int *) insert((int **) root[2], data);
 
     return root;
@@ -27,10 +27,10 @@ int search(int **root, int *data)
     if (!root)
 	return 0;
 
-    if (data < root[0])
+    if (*data < *root[0])
 	return search((int **) root[1], data);
 
-    if (data > root[0])
+    if (*data > *root[0])
 	return search((int **) root[2], data);
 
     return 1;

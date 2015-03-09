@@ -8,6 +8,10 @@ using namespace std;
 #include "Symbol.h"
 #include "Tree.h"
 
+_ASTNodeVal::_ASTNodeVal()
+	: lineNumber(-1)
+{}
+
 Type::eSpecifier Specifier()
 {
 	if (lookahead() == "int") {
@@ -40,8 +44,8 @@ void TranslationUnit(TreeNode<ASTNodeVal>** r_astRootNode, ParserState** r_parse
 
 	parserState->stack.push_back(Scope());
 
-	astRootNode->val.type = ASTNodeValType::VARIANT;
-	astRootNode->val.variant.setVal(Variant::STRING, "TranslationUnit");
+	astRootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+	astRootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "TranslationUnit");
 
 	while (lookahead() != "EOF") {
 		// both GlobalDeclaration and FunctionDefinition
@@ -158,8 +162,8 @@ TreeNode<ASTNodeVal>* Parameters(ParserState& parserState, vector<Symbol*>& func
 		return NULL;
 	} else {
 		TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
-		rootNode->val.type = ASTNodeValType::VARIANT;
-		rootNode->val.variant.setVal(Variant::STRING, "PARAMS");
+		rootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+		rootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "PARAMS");
 
 		Symbol* a = new Symbol;
 
@@ -225,8 +229,8 @@ TreeNode<ASTNodeVal>* Parameter(ParserState& parserState, Symbol& s)
 TreeNode<ASTNodeVal>* Declarations(ParserState& parserState)
 {
 	TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
-	rootNode->val.type = ASTNodeValType::VARIANT;
-	rootNode->val.variant.setVal(Variant::STRING, "DECLS");
+	rootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+	rootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "DECLS");
 
 	for (string currToken = lookahead(); isSpecifier(currToken); currToken = lookahead()) {
 		addChildrenToNode(rootNode, Declaration(parserState));
@@ -324,8 +328,8 @@ TreeNode<ASTNodeVal>* Declarator(ParserState& parserState, Type::eSpecifier spec
 TreeNode<ASTNodeVal>* Statements(ParserState& parserState, Type* enclosingFuncRetType)
 {
 	TreeNode<ASTNodeVal>* rootNode = new TreeNode<ASTNodeVal>;
-	rootNode->val.type = ASTNodeValType::VARIANT;
-	rootNode->val.variant.setVal(Variant::STRING, "STMTS");
+	rootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+	rootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "STMTS");
 
 	while (lookahead() != "}")
 	{
@@ -349,8 +353,8 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 
 		parserState.stack.push_back(Scope());
 
-		astRootNode->val.type = ASTNodeValType::VARIANT;
-		astRootNode->val.variant.setVal(Variant::STRING, "BLOCK");
+		astRootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+		astRootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "BLOCK");
 
 		TreeNode<ASTNodeVal>* declNode = Declarations(parserState);
 
@@ -385,6 +389,7 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 
 		astRootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
 		astRootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "RETURN");
+		astRootNode->val.lineNumber = lineNumber;
 
 		TreeNode<ASTNodeVal>* expNode = Expression(parserState);
 
@@ -419,8 +424,9 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 
 		match("(", NULL, &lineNumber);
 
-		astRootNode->val.type = ASTNodeValType::VARIANT;
-		astRootNode->val.variant.setVal(Variant::STRING, "WHILE");
+		astRootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+		astRootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "WHILE");
+		astRootNode->val.lineNumber = lineNumber;
 
 		TreeNode<ASTNodeVal>* conditionNode = Expression(parserState);
 
@@ -459,8 +465,9 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 
 		match("(", NULL, &lineNumber);
 
-		astRootNode->val.type = ASTNodeValType::VARIANT;
-		astRootNode->val.variant.setVal(Variant::STRING, "IF");
+		astRootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+		astRootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "IF");
+		astRootNode->val.lineNumber = lineNumber;
 
 		TreeNode<ASTNodeVal>* conditionNode = Expression(parserState);
 
@@ -490,8 +497,8 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 			match("else");
 
 			TreeNode<ASTNodeVal>* astElseNode = new TreeNode<ASTNodeVal>(astRootNode);
-			astElseNode->val.type = ASTNodeValType::VARIANT;
-			astElseNode->val.variant.setVal(Variant::STRING, "ELSE");
+			astElseNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+			astElseNode->val.variantTypeNode.variant.setVal(Variant::STRING, "ELSE");
 			astElseNode->addChild(Statement(parserState, enclosingFuncRetType));
 		}
 	} else {
@@ -507,8 +514,9 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 			unsigned int lineNumber;
 			match("=", NULL, &lineNumber);
 
-			astRootNode->val.type = ASTNodeValType::VARIANT;
-			astRootNode->val.variant.setVal(Variant::STRING, "ASSIGN");
+			astRootNode->val.type = ASTNodeValType::VARIANTTYPENODE;
+			astRootNode->val.variantTypeNode.variant.setVal(Variant::STRING, "ASSIGN");
+			astRootNode->val.lineNumber = lineNumber;
 			astRootNode->addChild(astExpNode);
 
 			TreeNode<ASTNodeVal>* valNode = Expression(parserState);
@@ -525,7 +533,7 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 
 			Type t1, t2;
 
-			bool lhsIsLval;
+			bool lhsIsLval = false;
 
 			if (!GetSymbolType(astExpNode->val, &t1, &lhsIsLval)) {
 				if (!GetVariantType(astExpNode->val, &t1)) {
@@ -536,7 +544,7 @@ TreeNode<ASTNodeVal>* Statement(ParserState& parserState, Type* enclosingFuncRet
 				}
 			}
 
-			if (!GetSymbolType(valNode->val, &t2, &lhsIsLval)) {
+			if (!GetSymbolType(valNode->val, &t2)) {
 				if (!GetVariantType(valNode->val, &t2)) {
 					t2 = valNode->val.variantTypeNode.type;
 				}
