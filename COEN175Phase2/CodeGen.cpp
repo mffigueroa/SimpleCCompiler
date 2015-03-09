@@ -537,7 +537,7 @@ void WhileCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	Indent(ss);
 	ss << "jz " << lblPrefix << "END" << endl;
 
-	ExpressionCodeGen(ss, exprNode, state, stmtState);
+	StatementCodeGen(ss, exprNode, state, stmtState);
 
 	Indent(ss);
 	ss << "jmp " << lblPrefix << "START" << endl;

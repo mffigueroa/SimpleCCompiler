@@ -5,6 +5,7 @@
 #include "Tokens.h"
 #include "Type.h"
 #include "Variant.h"
+#include "Header.h"
 
 using namespace std;
 
@@ -36,9 +37,9 @@ WHITESPACE	[\n\t\v\r ]+
 <INCOMMENT>[^\n] {}
 <INCOMMENT>{WHITESPACE} { updateLineNumber(yytext); }
 \/\* { BEGIN(INCOMMENT); }
-{KEYWORD} { if(isSpecifier(yytext)) { currVariant.setVal(); } return tokenMap[yytext]; }
+{KEYWORD} { return tokenMap[yytext]; }
 {IDENTIFIER} { currVariant.setVal(Variant::IDENTIFIER, yytext); return tokenMap["IDENTIFIER"]; }
-{Variant::STRING} { updateLineNumber(yytext); currVariant.setVal(Variant::STRING, yytext); return tokenMap["STRING"]; }
+{STRING} { updateLineNumber(yytext); currVariant.setVal(Variant::STRING, yytext); return tokenMap["STRING"]; }
 {CHARACTER} { updateLineNumber(yytext); currVariant.setVal(Variant::CHAR, yytext); return tokenMap["CHARACTER"]; }
 {OPERATOR} { return tokenMap[yytext]; }
 {INTEGER} { currVariant.setVal(Variant::INT, yytext); return tokenMap["INTEGER"]; }
