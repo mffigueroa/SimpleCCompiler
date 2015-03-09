@@ -29,8 +29,8 @@ typedef struct _CodeGenState {
 	std::vector<size_t>							scopeStackAllocSizes;
 	size_t										temporaryStackOffset;
 	SymbolTableRef								enclosingFunc;
-	std::stack<size_t>							numWhileStatementsInBlock;
-	std::stack<size_t>							numIfStatementsInBlock;
+	size_t										numWhileStatementsInFunc;
+	size_t										numIfStatementsInFunc;
 	std::vector<std::vector<SymbolTableRef>>	scopeVariables;
 	std::map<Symbol*, size_t>					funcParameters;
 

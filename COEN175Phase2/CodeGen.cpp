@@ -244,8 +244,8 @@ void FuncCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node)
 	blockState.scopeStackAllocSizes.push_back(8 + currParamStackOffset);
 
 	blockState.enclosingFunc = node->val.symbol;
-	blockState.numWhileStatementsInBlock.push(0);
-	blockState.numIfStatementsInBlock.push(0);
+	blockState.numWhileStatementsInFunc = 0;
+	blockState.numIfStatementsInFunc = 0;
 	blockState.temporaryStackOffset = 0;
 
 	// the codegenstate passed in here will record
@@ -341,9 +341,6 @@ void BlockCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	// allocation sizes of various scopes
 	state.scopeStackAllocSizes.push_back(stackSize);
 
-	state.numIfStatementsInBlock.push(0);
-	state.numWhileStatementsInBlock.push(0);
-
 	if (stackSize) {
 		Indent(ss);
 		ss << "subq $" << stackSize << ", %rsp" << endl << endl;
@@ -372,8 +369,6 @@ void BlockCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	// get rid of our stack offset as we finish
 	// generating code for this block
 	state.scopeStackAllocSizes.pop_back();
-	state.numIfStatementsInBlock.pop();
-	state.numWhileStatementsInBlock.pop();
 }
 
 void StatementCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -524,7 +519,8 @@ void WhileCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	++i;
 	TreeNode<ASTNodeVal>* exprNode = *i;
 	
-	string lblPrefix = ".WHILE_" + state.enclosingFunc->second.identifier + "_" + intToStr(state.numWhileStatementsInBlock.top()) + "_";
+	string lblPrefix = ".WHILE_" + state.enclosingFunc->second.identifier + "_" + intToStr(state.numWhileStatementsInFunc) + "_";
+	state.numWhileStatementsInFunc++;
 
 	ss << lblPrefix << "START:" << endl;
 
@@ -543,8 +539,6 @@ void WhileCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	ss << "jmp " << lblPrefix << "START" << endl;
 
 	ss << lblPrefix << "END:" << endl;
-
-	state.numWhileStatementsInBlock.top()++;
 }
 
 void IfCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -559,8 +553,8 @@ void IfCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state
 
 	Type t = ExpressionCodeGen(ss, conditionNode, state, stmtState);
 
-	string lblPrefix = ".IF_" + state.enclosingFunc->second.identifier + "_" + intToStr(state.numIfStatementsInBlock.top()) + "_";
-	state.numIfStatementsInBlock.top()++;
+	string lblPrefix = ".IF_" + state.enclosingFunc->second.identifier + "_" + intToStr(state.numIfStatementsInFunc) + "_";
+	state.numIfStatementsInFunc++;
 
 	Indent(ss);
 	string raxName = GetRegNameForType(t, Registers::RAX);
