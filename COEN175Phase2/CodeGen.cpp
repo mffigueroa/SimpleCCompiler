@@ -16,6 +16,7 @@ _CodeGenState::_CodeGenState()
 }
 
 _StatementGenState::_StatementGenState()
+	: numAndOpsInFunc(0), numOrOpsInFunc(0)
 {
 	expectsAddress.push(false);
 	expectsValueIfPointerType.push(false);
@@ -122,6 +123,8 @@ void RootCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node)
 {
 	list<TreeNode<ASTNodeVal>*>& children = node->getChildList();
 	list<TreeNode<ASTNodeVal>*>::iterator i = children.begin(), i_end = children.end();
+
+	ss << endl << ".data" << endl << endl;
 
 	// declare our global variables
 	for (; i != i_end; ++i) {

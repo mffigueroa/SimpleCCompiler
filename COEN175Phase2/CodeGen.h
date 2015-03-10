@@ -38,8 +38,9 @@ typedef struct _CodeGenState {
 } CodeGenState;
 
 typedef struct _StatementGenState {
-	std::stack<bool> expectsAddress;
-	std::stack<bool> expectsValueIfPointerType;
+	std::stack<bool>	expectsAddress;
+	std::stack<bool>	expectsValueIfPointerType;
+	size_t				numAndOpsInFunc, numOrOpsInFunc;
 
 	_StatementGenState();
 } StatementGenState;

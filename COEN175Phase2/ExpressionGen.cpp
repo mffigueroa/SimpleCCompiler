@@ -7,6 +7,7 @@ using namespace std;
 Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState);
 Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState, bool doModulus = false);
 Type BinaryOpCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string& opInst, CodeGenState& state, StatementGenState& stmtState);
+Type AndOrCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, bool genAnd, CodeGenState& state, StatementGenState& stmtState);
 Type NotCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState);
 Type NegCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState);
 Type AddrOfCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState);
@@ -52,9 +53,9 @@ Type ExpressionCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenStat
 	} else if (nodeName == "sub") {
 		return BinaryOpCodeGen(ss, node, "sub", state, stmtState);
 	} else if (nodeName == "and") {
-		return BinaryOpCodeGen(ss, node, "and", state, stmtState);
+		return AndOrCodeGen(ss, node, true, state, stmtState);
 	} else if (nodeName == "or") {
-		return BinaryOpCodeGen(ss, node, "or", state, stmtState);
+		return AndOrCodeGen(ss, node, false, state, stmtState);
 	} else if (nodeName == "not") {
 		return NotCodeGen(ss, node, state, stmtState);
 	} else if (nodeName == "neg") {
@@ -149,6 +150,21 @@ void BinaryOpParamCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenS
 	ss << "popq %rdi" << endl;
 }
 
+Type BinaryOpCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string& opInst, CodeGenState& state, StatementGenState& stmtState)
+{
+	Type lhsType, rhsType;
+	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType, stmtState);
+
+	const Type& resultantType = node->val.variantTypeNode.type;
+
+	Indent(ss);
+	ss << opInst << GetInstSuffixForType(resultantType) << " " << GetRegNameForType(rhsType, Registers::RDI)
+		<< ", " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+	state.regAlloc[Registers::RAX] = true;
+
+	return rhsType;
+}
+
 Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
 {
 	Type lhsType, rhsType;
@@ -230,16 +246,85 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 	return largerType;
 }
 
-Type BinaryOpCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string& opInst, CodeGenState& state, StatementGenState& stmtState)
+Type AndOrCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, bool genAnd, CodeGenState& state, StatementGenState& stmtState)
 {
 	Type lhsType, rhsType;
-	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType, stmtState);
+
+	// evaluate the two child nodes
+	list<TreeNode<ASTNodeVal>*>::iterator child = node->getChildList().begin();
+	TreeNode<ASTNodeVal>* lhs = *child;
+	++child;
+	TreeNode<ASTNodeVal>* rhs = *child;
 
 	const Type& resultantType = node->val.variantTypeNode.type;
 
+	string lblPrefix = "_" + state.enclosingFunc->second.identifier + "_" + intToStr(stmtState.numAndOpsInFunc) + "_";
+
+	if (genAnd) {
+		lblPrefix.insert(0, "AND");
+		++stmtState.numAndOpsInFunc;
+	} else {
+		lblPrefix.insert(0, "OR");
+		++stmtState.numOrOpsInFunc;
+	}
+
+	stmtState.expectsAddress.push(false);
+	lhsType = ExpressionCodeGen(ss, lhs, state, stmtState);
+
+	string raxRegName = GetRegNameForType(lhsType, Registers::RAX);
+
 	Indent(ss);
-	ss << opInst << GetInstSuffixForType(resultantType) << " " << GetRegNameForType(rhsType, Registers::RDI)
-		<< ", " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+	ss << "test" << GetInstSuffixForType(lhsType) << " " << raxRegName << ", " << raxRegName << endl;
+
+	Indent(ss);
+	if (genAnd) {
+		ss << "jz " << lblPrefix << "0" << endl;
+	} else {
+		ss << "jnz " << lblPrefix << "1" << endl;
+	}
+
+	rhsType = ExpressionCodeGen(ss, rhs, state, stmtState);
+	stmtState.expectsAddress.pop();
+
+	raxRegName = GetRegNameForType(rhsType, Registers::RAX);
+
+	Indent(ss);
+	ss << "test" << GetInstSuffixForType(lhsType) << " " << raxRegName << ", " << raxRegName << endl;
+
+	Indent(ss);
+	
+	if (genAnd) {
+		ss << "jz " << lblPrefix << "0" << endl;
+	} else {
+		ss << "jnz " << lblPrefix << "1" << endl;
+	}
+
+	raxRegName = GetRegNameForType(resultantType, Registers::RAX);
+
+	Indent(ss);
+	if (genAnd) {
+		ss << "mov" << GetInstSuffixForType(resultantType) << " $1, " << raxRegName << endl;
+	} else {
+		ss << "mov" << GetInstSuffixForType(resultantType) << " $0, " << raxRegName << endl;
+	}
+
+	Indent(ss);
+	ss << "jmp " << lblPrefix << "END" << endl;
+
+	if (genAnd) {
+		ss << lblPrefix << "0:" << endl;
+
+		Indent(ss);
+		ss << "mov" << GetInstSuffixForType(resultantType) << " $0, " << raxRegName << endl;
+	} else {
+		ss << lblPrefix << "1:" << endl;
+
+		Indent(ss);
+		ss << "mov" << GetInstSuffixForType(resultantType) << " $1, " << raxRegName << endl;
+	}
+
+	ss << lblPrefix << "END:" << endl;
+
 	state.regAlloc[Registers::RAX] = true;
 
 	return rhsType;
@@ -280,6 +365,8 @@ Type ComparisonCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const strin
 	Type lhsType, rhsType;
 	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType, stmtState);
 
+	Type resultantType = node->val.variantTypeNode.type;
+
 	Indent(ss);
 	ss << "cmp" << GetInstSuffixForType(lhsType) << " " << GetRegNameForType(rhsType, Registers::RDI)
 		<< ", " << GetRegNameForType(lhsType, Registers::RAX) << endl;
@@ -287,8 +374,11 @@ Type ComparisonCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const strin
 	Indent(ss);
 	ss << "set" << comparisonType << " %al" << endl;
 
-	Indent(ss);
-	ss << "movzb" << GetInstSuffixForType(lhsType) << " %al, " << GetRegNameForType(lhsType, Registers::RAX) << endl;
+	if (resultantType.spec != Type::CHAR) {
+		Indent(ss);
+		ss << "movzb" << GetInstSuffixForType(lhsType) << " %al, " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+	}
+
 	state.regAlloc[Registers::RAX] = true;
 
 	Type t;
