@@ -18,6 +18,7 @@ Type IndexCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 Type ComparisonCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string& comparisonType, CodeGenState& state, StatementGenState& stmtState);
 
 void PromoteResultToType(stringstream& ss, const Type& fromType, const Type& toType, Registers::Reg reg = Registers::RAX);
+void PromoteBinaryOpsToLarger(stringstream& ss, const Type& lhsType, Registers::Reg lhsReg, const Type& rhsType, Registers::Reg rhsReg, Type& r_largerType);
 
 void BinaryOpParamCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, Type& r_lhs, Type& r_rhs, StatementGenState& stmtState, bool needLhsAddress = false, bool needRhsAddress = false);
 
@@ -159,10 +160,17 @@ Type BinaryOpCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string&
 
 	const Type& resultantType = node->val.variantTypeNode.type;
 
+	Type largerType;
+	PromoteBinaryOpsToLarger(ss, lhsType, Registers::RAX, rhsType, Registers::RDI, largerType);
+
 	Indent(ss);
-	ss << opInst << GetInstSuffixForType(resultantType) << " " << GetRegNameForType(rhsType, Registers::RDI)
-		<< ", " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+	ss << opInst << GetInstSuffixForType(largerType) << " " << GetRegNameForType(largerType, Registers::RDI)
+		<< ", " << GetRegNameForType(largerType, Registers::RAX) << endl;
 	state.regAlloc[Registers::RAX] = true;
+
+	if (largerType != resultantType) {
+		PromoteResultToType(ss, largerType, resultantType);
+	}
 
 	return resultantType;
 }
@@ -172,23 +180,21 @@ Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState&
 	Type lhsType, rhsType;
 	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType, stmtState);
 
-	size_t rhsTypeSize = GetTypeSize(rhsType), lhsTypeSize = GetTypeSize(lhsType);
+	const Type& resultantType = node->val.variantTypeNode.type;
 
-	Type biggerType = lhsType;
-
-	if (rhsTypeSize > lhsTypeSize) {
-		biggerType = rhsType;
-		PromoteResultToType(ss, lhsType, rhsType, Registers::RAX);
-	} else if (lhsTypeSize > rhsTypeSize) {
-		PromoteResultToType(ss, rhsType, lhsType, Registers::RDI);
-	}
+	Type largerType;
+	PromoteBinaryOpsToLarger(ss, lhsType, Registers::RAX, rhsType, Registers::RDI, largerType);
 	
 	Indent(ss);
-	ss << "imul" << GetInstSuffixForType(biggerType) << " " << GetRegNameForType(biggerType, Registers::RDI) << endl;
+	ss << "imul" << GetInstSuffixForType(largerType) << " " << GetRegNameForType(largerType, Registers::RDI) << endl;
 
 	state.regAlloc[Registers::RAX] = true;
 
-	return biggerType;
+	if (largerType != resultantType) {
+		PromoteResultToType(ss, largerType, resultantType);
+	}
+
+	return resultantType;
 }
 
 Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState, bool doModulus)
@@ -208,19 +214,10 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 
 	Type lhsType = ExpressionCodeGen(ss, lhs, state, stmtState);
 
-	// if the operands aren't the same size, make the smaller one bigger
-	size_t lhsTypeSize = GetTypeSize(lhsType), rhsTypeSize = GetTypeSize(rhsType);
+	Type largerType;
+	PromoteBinaryOpsToLarger(ss, lhsType, Registers::RAX, rhsType, Registers::RDI, largerType);
 
-	Type largerType = lhsType;
-	size_t largerTypeSize = lhsTypeSize;
-
-	if (lhsTypeSize < rhsTypeSize) {
-		largerType = rhsType;
-		largerTypeSize = rhsTypeSize;
-		PromoteResultToType(ss, lhsType, rhsType, Registers::RAX);
-	} else if (lhsTypeSize > rhsTypeSize) {
-		PromoteResultToType(ss, rhsType, lhsType, Registers::RDI);
-	}
+	size_t largerTypeSize = GetTypeSize(largerType);
 
 	/*
 
@@ -254,7 +251,7 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 		PromoteResultToType(ss, largerType, resultantType);
 	}
 
-	return largerType;
+	return resultantType;
 }
 
 Type AndOrCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, bool genAnd, CodeGenState& state, StatementGenState& stmtState)
@@ -521,4 +518,19 @@ void PromoteResultToType(stringstream& ss, const Type& fromType, const Type& toT
 
 	Indent(ss);
 	ss << "movs" << GetInstSuffixForType(fromType) << GetInstSuffixForType(toType) << " " << GetRegNameForType(fromType, reg) << ", " << GetRegNameForType(toType, reg) << endl;
+}
+
+void PromoteBinaryOpsToLarger(stringstream& ss, const Type& lhsType, Registers::Reg lhsReg, const Type& rhsType, Registers::Reg rhsReg, Type& r_largerType)
+{
+	// if the operands aren't the same size, make the smaller one bigger
+	size_t lhsTypeSize = GetTypeSize(lhsType), rhsTypeSize = GetTypeSize(rhsType);
+
+	r_largerType = lhsType;
+
+	if (lhsTypeSize < rhsTypeSize) {
+		r_largerType = rhsType;
+		PromoteResultToType(ss, lhsType, rhsType, lhsReg);
+	} else if (lhsTypeSize > rhsTypeSize) {
+		PromoteResultToType(ss, rhsType, lhsType, rhsReg);
+	}
 }

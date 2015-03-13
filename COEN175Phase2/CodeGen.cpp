@@ -88,9 +88,15 @@ string GetRegNameForType(const Type& t, Registers::Reg reg)
 		}
 
 		if (typeSize == 1) {
-			origName[1] = origName[2];
-			origName[2] = 'l';
-			return origName.substr(0, 3);
+			if (origName[3] == 'x') {
+				origName[1] = origName[2];
+				origName[2] = 'l';
+				return origName.substr(0, 3);
+			} else {
+				origName[1] = origName[2];
+				origName[2] = origName[3];
+				origName[3] = 'l';
+			}
 		}
 
 		return origName;
