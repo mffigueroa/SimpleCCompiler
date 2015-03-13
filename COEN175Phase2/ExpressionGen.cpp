@@ -164,7 +164,7 @@ Type BinaryOpCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string&
 		<< ", " << GetRegNameForType(resultantType, Registers::RAX) << endl;
 	state.regAlloc[Registers::RAX] = true;
 
-	return rhsType;
+	return resultantType;
 }
 
 Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -178,9 +178,9 @@ Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState&
 
 	if (rhsTypeSize > lhsTypeSize) {
 		biggerType = rhsType;
-		PromoteResultToType(ss, lhsType, rhsType, Registers::RDI);
+		PromoteResultToType(ss, lhsType, rhsType, Registers::RAX);
 	} else if (lhsTypeSize > rhsTypeSize) {
-		PromoteResultToType(ss, rhsType, lhsType, Registers::RAX);
+		PromoteResultToType(ss, rhsType, lhsType, Registers::RDI);
 	}
 	
 	Indent(ss);
@@ -188,7 +188,7 @@ Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState&
 
 	state.regAlloc[Registers::RAX] = true;
 
-	return lhsType;
+	return biggerType;
 }
 
 Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState, bool doModulus)
@@ -217,9 +217,9 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 	if (lhsTypeSize < rhsTypeSize) {
 		largerType = rhsType;
 		largerTypeSize = rhsTypeSize;
-		PromoteResultToType(ss, lhsType, rhsType, Registers::RDI);
+		PromoteResultToType(ss, lhsType, rhsType, Registers::RAX);
 	} else if (lhsTypeSize > rhsTypeSize) {
-		PromoteResultToType(ss, rhsType, lhsType, Registers::RAX);
+		PromoteResultToType(ss, rhsType, lhsType, Registers::RDI);
 	}
 	
 	if (largerTypeSize == 8) {
@@ -328,19 +328,20 @@ Type AndOrCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, bool genAnd, Cod
 
 	state.regAlloc[Registers::RAX] = true;
 
-	return rhsType;
+	return resultantType;
 }
 
 Type NegCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
 {
 	list<TreeNode<ASTNodeVal>*>::const_iterator child = node->getChildList().begin();
 	Type lhsType = ExpressionCodeGen(ss, *child, state, stmtState);
+	Type resultantType = node->val.variantTypeNode.type;
 
 	Indent(ss);
-	ss << "neg" << GetInstSuffixForType(lhsType) << " " << GetRegNameForType(lhsType, Registers::RAX) << endl;
+	ss << "neg" << GetInstSuffixForType(resultantType) << " " << GetRegNameForType(resultantType, Registers::RAX) << endl;
 	state.regAlloc[Registers::RAX] = true;
 
-	return lhsType;
+	return resultantType;
 }
 
 Type NotCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -360,7 +361,7 @@ Type NotCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& stat
 	ss << "movzb" << GetInstSuffixForType(lhsType) << " %al, " << GetRegNameForType(resultantType, Registers::RAX) << endl;
 	state.regAlloc[Registers::RAX] = true;
 
-	return lhsType;
+	return resultantType;
 }
 
 Type ComparisonCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string& comparisonType, CodeGenState& state, StatementGenState& stmtState)
@@ -384,9 +385,7 @@ Type ComparisonCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const strin
 
 	state.regAlloc[Registers::RAX] = true;
 
-	Type t;
-	t.spec = Type::INT;
-	return t;
+	return resultantType;
 }
 
 Type AddrOfCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -394,11 +393,10 @@ Type AddrOfCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 	list<TreeNode<ASTNodeVal>*>::const_iterator child = node->getChildList().begin();
 
 	stmtState.expectsAddress.push(true);
-	Type t = ExpressionCodeGen(ss, *child, state, stmtState);
+	ExpressionCodeGen(ss, *child, state, stmtState);
 	stmtState.expectsAddress.pop();
 
-	++t.lvlsOfIndirection;
-	return t;
+	return node->val.variantTypeNode.type;
 }
 
 Type DerefCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -408,45 +406,54 @@ Type DerefCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	stmtState.expectsAddress.push(false);
 	Type t = ExpressionCodeGen(ss, *child, state, stmtState);
 	stmtState.expectsAddress.pop();
-
-	if (t.lvlsOfIndirection > 0) {
-		--t.lvlsOfIndirection;
-	}
+	
+	Type resultantType = node->val.variantTypeNode.type;
 
 	// we know that t will be a pointer so it'll be 8 bytes and in %rax
 	Indent(ss);
-	ss << "mov" << GetInstSuffixForType(t) << " (%rax), " << GetRegNameForType(t, Registers::RAX) << endl;
+	ss << "mov" << GetInstSuffixForType(resultantType) << " (%rax), " << GetRegNameForType(resultantType, Registers::RAX) << endl;
 
-	return t;
+	return resultantType;
 }
 
 Type SizeOfCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
 {
 	list<TreeNode<ASTNodeVal>*>& children = node->getChildList();
 	list<TreeNode<ASTNodeVal>*>::iterator child = children.begin();
+	
+	Type t;
 
 	if (children.size() == 2) {
-		Type t;
 		t.spec = (*child)->val.variant.getSpecifierVal();
 		++child;
 		t.lvlsOfIndirection = (*child)->val.variant.getIntVal();
-
-		Indent(ss);
-		ss << "movq $" << GetTypeSize(t) << ", %rax" << endl;
-
-		t.spec = Type::LONGINT;
-		t.lvlsOfIndirection = 0;
-		return t;
 	} else {
-		Type exprType = ExpressionCodeGen(ss, *child, state, stmtState);
-		Type t;
-		t.spec = Type::LONGINT;
+		const ASTNodeVal& i = (*child)->val;
 
-		Indent(ss);
-		ss << "movq $" << GetTypeSize(exprType) << ", %rax" << endl;
-
-		return t;
+		if (i.type == ASTNodeValType::SYMBOL) {
+			t = i.symbol->second.type;
+		} else if (i.type == ASTNodeValType::VARIANTTYPENODE) {
+			t = i.variantTypeNode.type;
+		} else if (i.type == ASTNodeValType::VARIANT) {
+			Variant::VariantType v = i.variant.getType();
+			if (v == Variant::INT) {
+				t.spec = Type::INT;
+			} else if (v == Variant::LONGINT) {
+				t.spec = Type::LONGINT;				
+			} else if (v == Variant::CHAR) {
+				t.spec = Type::CHAR;				
+			} else if (v == Variant::STRING) {
+				t.spec = Type::CHAR;
+				// add one for null terminator
+				t.arraySize = i.variant.getStrVal().length() + 1;
+			}
+		}
 	}
+
+	Indent(ss);
+	ss << "movq $" << GetTypeSize(t) << ", %rax" << endl;
+
+	return node->val.variantTypeNode.type;
 }
 
 Type IndexCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -461,28 +468,32 @@ Type IndexCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 
 	string lhsTypeSizeStr = intToStr(GetTypeSize(lhsType, false));
 
+	if (GetTypeSize(rhsType) < 8) {
+		Type t;
+		t.spec = Type::LONGINT;
+		PromoteResultToType(ss, rhsType, t, Registers::RDI);
+	}
+
 	Indent(ss);
 
 	bool computeAddress = stmtState.expectsAddress.top() && !(stmtState.expectsValueIfPointerType.top() && isPointerType(lhsType));
+
+	Type resultantType = node->val.variantTypeNode.type;
 	
 	if (computeAddress) {
 		ss << "leaq";
 	} else {
-		ss << "mov" << GetInstSuffixForType(lhsType);
+		ss << "mov" << GetInstSuffixForType(resultantType);
 	}
 
 	ss << " (%rax, %rdi, " << lhsTypeSizeStr << "), ";
 	if (computeAddress) {
 		ss << "%rax" << endl;
 	} else {
-		ss << GetRegNameForType(lhsType, Registers::RAX) << endl;
+		ss << GetRegNameForType(resultantType, Registers::RAX) << endl;
 	}
 
-	if (lhsType.lvlsOfIndirection) {
-		--lhsType.lvlsOfIndirection;
-	}
-
-	return lhsType;
+	return resultantType;
 }
 
 Type CastCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
