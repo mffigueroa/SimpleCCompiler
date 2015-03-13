@@ -446,6 +446,7 @@ Type FuncCallCodeGen(std::stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenS
 
 	for (size_t param = 0; param < numParams; ++param, ++paramNode) {
 		Type paramType = ExpressionCodeGen(ss, *paramNode, state, stmtState);
+
 		paramTypes.push_back(paramType);
 
 		if (param < Registers::calleeSaved.size()) {

@@ -93,7 +93,9 @@ Type SymbolAccessCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenSt
 	const Symbol& sym = node->val.symbol->second;
 	Indent(ss);
 
-	if (stmtState.expectsAddress.top() && !(stmtState.expectsValueIfPointerType.top() && sym.type.lvlsOfIndirection > 0)) {
+	bool returningPointer = stmtState.expectsAddress.top() && !(stmtState.expectsValueIfPointerType.top() && sym.type.lvlsOfIndirection > 0);
+
+	if (returningPointer) {
 		ss << "leaq";
 	} else {
 		ss << "mov" << GetInstSuffixForType(sym.type);
@@ -101,11 +103,20 @@ Type SymbolAccessCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenSt
 
 	ss << " " << GetSymbolPointer(node->val.symbol, state) << ", ";
 
-	if (stmtState.expectsAddress.top() && !(stmtState.expectsValueIfPointerType.top() && sym.type.lvlsOfIndirection > 0)) {
+	if (returningPointer) {
 		ss << "%rax" << endl;
 	} else {
 		ss << GetRegNameForType(sym.type, Registers::RAX) << endl;
 	}
+
+	// have to promote char's
+	if (!returningPointer && GetTypeSize(sym.type) == 1) {
+		Type newIntType = sym.type;
+		newIntType.spec = Type::INT;
+		PromoteResultToType(ss, sym.type, newIntType);
+		return newIntType;
+	}
+
 	return sym.type;
 }
 
