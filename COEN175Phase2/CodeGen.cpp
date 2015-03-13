@@ -436,6 +436,7 @@ Type FuncCallCodeGen(std::stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenS
 	// part of code generation so we can save them for function calls.
 
 	size_t stackParamsTotalOffset = 0;
+	size_t numSavedCalleeSavedRegs = 0;
 
 	for (size_t param = 0; param < numParams; ++param, ++paramNode) {
 		Type paramType = ExpressionCodeGen(ss, *paramNode, state, stmtState);
@@ -444,6 +445,10 @@ Type FuncCallCodeGen(std::stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenS
 		if (param < Registers::calleeSaved.size()) {
 			string destRegName = GetRegNameForType(paramType, (Registers::Reg)Registers::calleeSaved[param]);
 			state.regAlloc[(Registers::Reg)Registers::calleeSaved[param]] = true;
+
+			Indent(ss);
+			ss << "pushq " << Registers::regNames[Registers::calleeSaved[param]] << endl;
+			++numSavedCalleeSavedRegs;
 
 			Indent(ss);
 			ss << "mov" << GetInstSuffixForType(paramType) << " " << GetRegNameForType(paramType, Registers::RAX)
@@ -486,6 +491,11 @@ Type FuncCallCodeGen(std::stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenS
 	// make the actual function call
 	Indent(ss);
 	ss << "call " << func.identifier << endl;
+
+	for (int i = numSavedCalleeSavedRegs - 1; i >= 0; --i) {
+		Indent(ss);
+		ss << "popq " << Registers::regNames[Registers::calleeSaved[i]] << endl;
+	}
 
 	// if we have more than five parameters then we pushed the sixth one
 	// onto the stack and them moved it into a register. so we have to pop it off
