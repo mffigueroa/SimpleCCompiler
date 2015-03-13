@@ -443,7 +443,7 @@ Type SizeOfCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 		t.spec = Type::LONGINT;
 
 		Indent(ss);
-		ss << "movq $" << GetTypeSize(exprType) << ", $rax" << endl;
+		ss << "movq $" << GetTypeSize(exprType) << ", %rax" << endl;
 
 		return t;
 	}
@@ -503,7 +503,9 @@ void PromoteResultToType(stringstream& ss, const Type& fromType, const Type& toT
 
 	if (srcTypeSize == 4 && destTypeSize == 8) {
 		ss << "d";
+	} else {
+		ss << instSuffix;
 	}
 
-	ss << instSuffix << " " << GetRegNameForType(fromType, reg) << ", " << GetRegNameForType(toType, reg) << endl;
+	ss << " " << GetRegNameForType(fromType, reg) << ", " << GetRegNameForType(toType, reg) << endl;
 }
