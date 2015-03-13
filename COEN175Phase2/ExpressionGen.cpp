@@ -17,6 +17,8 @@ Type CastCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& sta
 Type IndexCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState);
 Type ComparisonCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const string& comparisonType, CodeGenState& state, StatementGenState& stmtState);
 
+void PromoteResultToType(stringstream& ss, const Type& fromType, const Type& toType, Registers::Reg reg = Registers::RAX);
+
 void BinaryOpParamCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, Type& r_lhs, Type& r_rhs, StatementGenState& stmtState, bool needLhsAddress = false, bool needRhsAddress = false);
 
 Type ExpressionCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& state, StatementGenState& stmtState)
@@ -170,9 +172,15 @@ Type MultiplyCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState&
 	Type lhsType, rhsType;
 	BinaryOpParamCodeGen(ss, node, state, lhsType, rhsType, stmtState);
 
+	size_t rhsTypeSize = GetTypeSize(rhsType), lhsTypeSize = GetTypeSize(lhsType);
+
 	Type biggerType = lhsType;
-	if (GetTypeSize(rhsType) > GetTypeSize(lhsType)) {
+
+	if (rhsTypeSize > lhsTypeSize) {
 		biggerType = rhsType;
+		PromoteResultToType(ss, lhsType, rhsType, Registers::RDI);
+	} else if (lhsTypeSize > rhsTypeSize) {
+		PromoteResultToType(ss, rhsType, lhsType, Registers::RAX);
 	}
 	
 	Indent(ss);
@@ -193,6 +201,7 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 
 	Type rhsType = ExpressionCodeGen(ss, rhs, state, stmtState);
 
+	// put rhs in %rdi
 	Indent(ss);
 	ss << "mov" << GetInstSuffixForType(rhsType) << " " << GetRegNameForType(rhsType, Registers::RAX)
 		<< ", " << GetRegNameForType(rhsType, Registers::RDI) << endl;
@@ -201,29 +210,16 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 
 	// if the operands aren't the same size, make the smaller one bigger
 	size_t lhsTypeSize = GetTypeSize(lhsType), rhsTypeSize = GetTypeSize(rhsType);
-	Type largerType = lhsType, smallerType = rhsType;
-	size_t largerTypeSize = lhsTypeSize, smallerTypeSize = rhsTypeSize;
-	Registers::Reg regToMove = Registers::RDI;
+
+	Type largerType = lhsType;
+	size_t largerTypeSize = lhsTypeSize;
 
 	if (lhsTypeSize < rhsTypeSize) {
 		largerType = rhsType;
-		smallerType = lhsType;
 		largerTypeSize = rhsTypeSize;
-		smallerTypeSize = lhsTypeSize;
-		regToMove = Registers::RAX;
-	}
-
-	if (lhsTypeSize != rhsTypeSize) {
-		Indent(ss);
-		ss << "movsx";
-
-		// movsxd instruction
-		if (largerTypeSize == 8 && smallerTypeSize == 4) {
-			ss << "d";
-		}
-
-		ss << GetInstSuffixForType(largerType) << " " << GetRegNameForType(smallerType, regToMove)
-			<< ", " << GetRegNameForType(largerType, regToMove) << endl;
+		PromoteResultToType(ss, lhsType, rhsType, Registers::RDI);
+	} else if (lhsTypeSize > rhsTypeSize) {
+		PromoteResultToType(ss, rhsType, lhsType, Registers::RAX);
 	}
 	
 	if (largerTypeSize == 8) {
@@ -241,6 +237,11 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 		Indent(ss);
 		ss << "mov" << GetInstSuffixForType(largerType) << " " << GetRegNameForType(largerType, Registers::RDX)
 			<< ", " << GetRegNameForType(largerType, Registers::RAX) << endl;
+	}
+
+	Type resultantType = node->val.variantTypeNode.type;
+	if (largerType != resultantType) {
+		PromoteResultToType(ss, largerType, resultantType);
 	}
 
 	return largerType;
@@ -347,14 +348,16 @@ Type NotCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& stat
 	list<TreeNode<ASTNodeVal>*>::const_iterator child = node->getChildList().begin();
 	Type lhsType = ExpressionCodeGen(ss, *child, state, stmtState);
 
+	Type resultantType = node->val.variantTypeNode.type;
+
 	Indent(ss);
 	ss << "cmp" << GetInstSuffixForType(lhsType) << " $0, " << GetRegNameForType(lhsType, Registers::RAX) << endl;
 	
 	Indent(ss);
-	ss << "setzb %al" << endl;
+	ss << "setz %al" << endl;
 
 	Indent(ss);
-	ss << "movzb" << GetInstSuffixForType(lhsType) << " %al, " << GetRegNameForType(lhsType, Registers::RAX) << endl;
+	ss << "movzb" << GetInstSuffixForType(lhsType) << " %al, " << GetRegNameForType(resultantType, Registers::RAX) << endl;
 	state.regAlloc[Registers::RAX] = true;
 
 	return lhsType;
@@ -488,4 +491,19 @@ Type CastCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& sta
 	++child;
 	++child;
 	return ExpressionCodeGen(ss, *child, state, stmtState);
+}
+
+void PromoteResultToType(stringstream& ss, const Type& fromType, const Type& toType, Registers::Reg reg)
+{
+	size_t srcTypeSize = GetTypeSize(fromType), destTypeSize = GetTypeSize(toType);
+	char instSuffix = GetInstSuffixForType(toType);
+
+	Indent(ss);
+	ss << "movsx";
+
+	if (srcTypeSize == 4 && destTypeSize == 8) {
+		ss << "d";
+	}
+
+	ss << instSuffix << " " << GetRegNameForType(fromType, reg) << ", " << GetRegNameForType(toType, reg) << endl;
 }

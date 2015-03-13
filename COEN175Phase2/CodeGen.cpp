@@ -230,7 +230,10 @@ void FuncCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node)
 	// save the parameters on the stack, but only the ones
 	// that aren't already on the stack
 	for (vector<Symbol*>::const_iterator i = funcParams.begin(); i != funcParams.end(); ++i, ++paramNum) {
-		currParamStackOffset += GetTypeSize((*i)->type);
+		// since we have to push quads on the stack no matter
+		// what the size of the actual variable, every parameter's
+		// offset will be a multiple of 8 (the size of a quad)
+		currParamStackOffset += 8;
 		blockState.funcParameters[*i] = currParamStackOffset;
 
 		Indent(ss);
@@ -712,7 +715,7 @@ Type VariantCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& 
 		ss << "movq $" << v.getIntVal() << ", %rax" << endl;
 	} else if (type == Variant::CHAR) {
 		t.spec = Type::INT;
-		ss << "movb $" << (int)v.getCharVal() << ", %al" << endl;
+		ss << "movl $" << (int)v.getCharVal() << ", %eax" << endl;
 	} else if (type == Variant::STRING) {
 		t.spec = Type::CHAR;
 		t.lvlsOfIndirection = 1;

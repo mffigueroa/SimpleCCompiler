@@ -16,14 +16,14 @@ int main()
   ParserState*			parserState;
   TranslationUnit(&ast, &parserState);
 
-  //outputDotFile(ast, "ast.dot");
-  //renderDotFile("ast.dot");
+  outputDotFile(ast, "ast.dot");
+  renderDotFile("ast.dot");
 
   stringstream ss;
   InitRegMaps();
   RootCodeGen(ss, ast);
 
-  ofstream fp("output.asm", ios::out);
+  ofstream fp("output.s", ios::out);
   cout << ss.str();
   fp << ss.str();
 
