@@ -221,13 +221,23 @@ Type DivideCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& s
 	} else if (lhsTypeSize > rhsTypeSize) {
 		PromoteResultToType(ss, rhsType, lhsType, Registers::RDI);
 	}
+
+	/*
+
+	cltd
+	cqto
+
+	movl %eax, %edx
+	sarl $31, %edx
+
+	*/
 	
 	if (largerTypeSize == 8) {
 		Indent(ss);
-		ss << "cqo" << endl;
+		ss << "cqto" << endl;
 	} else if (largerTypeSize == 4) {
 		Indent(ss);
-		ss << "cdq" << endl;
+		ss << "cltd" << endl;
 	}
 
 	Indent(ss);
@@ -510,13 +520,5 @@ void PromoteResultToType(stringstream& ss, const Type& fromType, const Type& toT
 	char instSuffix = GetInstSuffixForType(toType);
 
 	Indent(ss);
-	ss << "movsx";
-
-	if (srcTypeSize == 4 && destTypeSize == 8) {
-		ss << "d";
-	} else {
-		ss << instSuffix;
-	}
-
-	ss << " " << GetRegNameForType(fromType, reg) << ", " << GetRegNameForType(toType, reg) << endl;
+	ss << "movs" << GetInstSuffixForType(fromType) << GetInstSuffixForType(toType) << " " << GetRegNameForType(fromType, reg) << ", " << GetRegNameForType(toType, reg) << endl;
 }
