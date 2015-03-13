@@ -446,9 +446,13 @@ Type FuncCallCodeGen(std::stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenS
 			string destRegName = GetRegNameForType(paramType, (Registers::Reg)Registers::calleeSaved[param]);
 			state.regAlloc[(Registers::Reg)Registers::calleeSaved[param]] = true;
 
+			// push the callee saved register on the stack.
+			// otherwise we will overwrite it when we do nested
+			// function calls.
 			Indent(ss);
 			ss << "pushq " << Registers::regNames[Registers::calleeSaved[param]] << endl;
 			++numSavedCalleeSavedRegs;
+			state.temporaryStackOffset += 8;
 
 			Indent(ss);
 			ss << "mov" << GetInstSuffixForType(paramType) << " " << GetRegNameForType(paramType, Registers::RAX)
@@ -492,9 +496,11 @@ Type FuncCallCodeGen(std::stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenS
 	Indent(ss);
 	ss << "call " << func.identifier << endl;
 
+	// pop the called saved registers we saved
 	for (int i = numSavedCalleeSavedRegs - 1; i >= 0; --i) {
 		Indent(ss);
 		ss << "popq " << Registers::regNames[Registers::calleeSaved[i]] << endl;
+		state.temporaryStackOffset -= 8;
 	}
 
 	// if we have more than five parameters then we pushed the sixth one
