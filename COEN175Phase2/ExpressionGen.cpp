@@ -376,7 +376,7 @@ Type NotCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& stat
 	ss << "setz %al" << endl;
 
 	Indent(ss);
-	ss << "movzb" << GetInstSuffixForType(lhsType) << " %al, " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+	ss << "movzb" << GetInstSuffixForType(resultantType) << " %al, " << GetRegNameForType(resultantType, Registers::RAX) << endl;
 	state.regAlloc[Registers::RAX] = true;
 
 	return resultantType;
@@ -398,7 +398,7 @@ Type ComparisonCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, const strin
 
 	if (resultantType.spec != Type::CHAR) {
 		Indent(ss);
-		ss << "movzb" << GetInstSuffixForType(lhsType) << " %al, " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+		ss << "movzb" << GetInstSuffixForType(resultantType) << " %al, " << GetRegNameForType(resultantType, Registers::RAX) << endl;
 	}
 
 	state.regAlloc[Registers::RAX] = true;
