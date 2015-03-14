@@ -486,7 +486,7 @@ Type IndexCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	
 	stmtState.expectsValueIfPointerType.pop();
 
-	if (isPointerType(lhsType)) {
+	if (lhsType.lvlsOfIndirection > 0) {
 		lhsType.lvlsOfIndirection--;
 	}
 
