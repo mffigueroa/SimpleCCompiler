@@ -71,7 +71,7 @@ string lookahead(unsigned int ahead)
 
 bool LookupSymbol(const ScopeStack& stack, const std::string& symbolName, SymbolTableRef* r_symbol)
 {
-	for (ScopeStack::const_iterator i = stack.begin(); i != stack.end(); ++i) {
+	for (ScopeStack::const_reverse_iterator i = stack.rbegin(); i != stack.rend(); ++i) {
 		Scope::const_iterator j = i->find(symbolName);
 		if (j != i->end()) {
 			if (r_symbol) {

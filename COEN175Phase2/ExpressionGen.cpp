@@ -427,9 +427,11 @@ Type DerefCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	
 	Type resultantType = node->val.variantTypeNode.type;
 
-	// we know that t will be a pointer so it'll be 8 bytes and in %rax
-	Indent(ss);
-	ss << "mov" << GetInstSuffixForType(resultantType) << " (%rax), " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+	if (stmtState.expectsAddress.top()) {
+		// we know that t will be a pointer so it'll be 8 bytes and in %rax
+		Indent(ss);
+		ss << "mov" << GetInstSuffixForType(resultantType) << " (%rax), " << GetRegNameForType(resultantType, Registers::RAX) << endl;
+	}
 
 	return resultantType;
 }
