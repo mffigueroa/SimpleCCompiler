@@ -5,3 +5,7 @@ This compiler outputs Intel x86-64 assembly code in the AT&T x86 syntax. It comp
 and writes it to standard output and to a file named "output.s".
 
 In order to aid debugging, it also outputs a .dot file representing the Abstract Syntax Tree that can be rendered using graphviz.
+
+Here's an example rendering of an Abstract Syntax Tree.
+
+![alt text](https://raw.githubusercontent.com/mffigueroa/SimpleCCompiler/phase5/imgs/ast.png "AST Rendering")
