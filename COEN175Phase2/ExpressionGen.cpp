@@ -486,6 +486,10 @@ Type IndexCodeGen(stringstream& ss, TreeNode<ASTNodeVal>* node, CodeGenState& st
 	
 	stmtState.expectsValueIfPointerType.pop();
 
+	if (isPointerType(lhsType)) {
+		lhsType.lvlsOfIndirection--;
+	}
+
 	string lhsTypeSizeStr = intToStr(GetTypeSize(lhsType, false));
 
 	if (GetTypeSize(rhsType) < 8) {
